@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:awesome_dialog/awesome_dialog.dart';
 import 'package:expandable_fab_lite/expandable_fab_lite.dart';
@@ -12,6 +13,8 @@ import 'package:flutter/services.dart';
 import 'package:responsive_grid/responsive_grid.dart';
 import 'package:http/http.dart' as http;
 import 'package:sn_progress_dialog/progress_dialog.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:whatsapp_unilink/whatsapp_unilink.dart';
 
 class CitaPaciente extends StatefulWidget {
   const CitaPaciente({super.key});
@@ -36,55 +39,56 @@ class _CitaPacienteScreen extends State<CitaPaciente>{
   TextEditingController reasonController =TextEditingController();
 
   int id = 0;
+  int unavez = 0;
   bool isReadOnly = false;
   bool _isGrabado = false;
-  //bool _isLoading = false;
+  bool _isLoading = true;
 
-// para validación del formulario
-final _formKey = GlobalKey<FormState>();
+  // para validación del formulario
+  final _formKey = GlobalKey<FormState>();
 
-String? fileName;
-String? extension;
-String? base64File;
-bool isUploading = false;
+  String? fileName;
+  String? extension;
+  String? base64File;
+  bool isUploading = false;
 
-String? _valuedentists='0';
-String? _valueoffices='0';
+  String? _valuedentists='0';
+  String? _valueoffices='0';
 
-final List<Map<String, String>> _dentists =  [
-  {'codigo': '0', 'descripcion': '-- Sin Selección --'},
-  {'codigo': '1', 'descripcion': 'Juan Piguave (Odontología General)'},
-  {'codigo': '2', 'descripcion': 'Josue Perez (Ortodoncia)'},
-];
-
-final List<Map<String, String>> _offices =  [
-  {'codigo': '0', 'descripcion': '-- Sin Selección --'},
-  {'codigo': '1', 'descripcion': 'Duran Recreo Primera Etapa'},
-  {'codigo': '2', 'descripcion': 'Duran Recreo Cuarta Etapa'},
-];
+  final List<Map<String, String>> _dentists =  [];
+  final List<Map<String, String>> _offices =  [];
 
 @override
 void initState() {
   _limpiarVar();
+
   super.initState();
   WidgetsBinding.instance.addPostFrameCallback((_) {
-  final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+    final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
 
-  final int? idPatient = args['idPatient'];
-  final String? documentId = args['documentId'];
-  final String? nombres = args['name'];
-  final String? apellidos = args['lastName'];
-  final String? telefonos = args['telefonos'];
-  final String? correo = args['correo'];
+    final int? idPatient = args['idPatient'];
+    final String? documentId = args['documentId'];
+    final String? nombres = args['name'];
+    final String? apellidos = args['lastName'];
+    final String? telefonos = args['telefonos'];
+    final String? correo = args['correo'];
+
+    setState(() {
+      unavez = 1;
+    });
+    llamadas();
 
     if (idPatient != null) {
       // Actualiza el controlador del ID con el valor recibido
-      _idController.text = idPatient.toString();
-      cedulaController.text = documentId.toString();
-      nombresController.text = nombres.toString();
-      apellidosController.text = apellidos.toString();
-      telefonoController.text = telefonos.toString();
-      correoController.text = correo.toString();
+      setState(() {
+        _idController.text = idPatient.toString();
+        cedulaController.text = documentId.toString();
+        nombresController.text = nombres.toString();
+        apellidosController.text = apellidos.toString();
+        telefonoController.text = telefonos.toString();
+        correoController.text = correo.toString();     
+      });
+
       //_cargarDatos(idPatient);
     }
   });
@@ -129,6 +133,12 @@ void _limpiarDet() {
 
   _valuedentists='0';
   _valueoffices='0';
+}
+
+Future<void> llamadas() async {
+  if (unavez == 0) {
+    await _cargarDatosIni();
+  }
 }
 
 bool soloLetras(String texto) {
@@ -252,6 +262,79 @@ void _updateDatos() async {
   }
 }
 
+Future<void> _cargarDatosIni() async {
+  var headersList = map;
+  final headers = {
+    'Authorization': 'Bearer $token',
+  };
+  headersList.addAll(headers);
+  var url0 = Uri.parse('$baseUrl/api/offices');
+
+  List<Map<String, String>> offices =  [];
+  List<Map<String, String>> dentists = [];
+  try {
+    // offices
+    final res0 = await http.get(url0, headers: headersList);
+    
+    if (res0.statusCode >= 200 && res0.statusCode < 300) {
+      final jsonData0 = jsonDecode(res0.body);
+
+      offices.add({'codigo': '0', 'descripcion': '-- Sin Selección --'});
+      jsonData0.toList().forEach((element) {
+        final id = element['id']?.toString() ?? '';
+        final name = element['name']?.toString() ?? '';
+        final location = element['location']?.toString() ?? '';
+
+        offices.add({
+          'codigo': id,
+          'descripcion': '$name $location}'
+        });
+      });
+    } 
+
+    // Dentista Especialidad
+    var url2 = Uri.parse('$baseUrl/api/specialtyDentists');
+    final res2 = await http.get(url2, headers: headersList);
+
+    if (res2.statusCode >= 200 && res2.statusCode < 300) {
+      final jsonData2 = jsonDecode(res2.body);
+
+      dentists.add({'codigo': '0', 'descripcion': '-- Sin Selección --'});
+      dentists.addAll(
+        (jsonData2 as List<dynamic>).map((e) {
+          final id = e['id']?.toString() ?? '';
+          final nombres = e['nombres']?.toString() ?? '';
+          final especialidad = e['especialidad']?.toString() ?? '';
+
+          return {
+            'codigo': id,
+            'descripcion': '$nombres $especialidad',
+          };
+        })
+      );
+    }  
+
+    setState(() {
+      _offices.addAll(offices);
+      _dentists.addAll(dentists);
+      _isLoading = false;
+      unavez = 1;
+    });
+
+  } on Exception catch (e) {
+    AwesomeDialog(
+      // ignore: use_build_context_synchronously
+      context: context,
+      animType: AnimType.bottomSlide,
+      dialogType: DialogType.error,
+      title: 'Odontológico',
+      desc: e.toString(),
+      btnOkText: 'Cerrar',
+      btnOkOnPress: () {},
+    ).show();
+  }
+}
+
 Future<void> _cargarDatos(int id) async {
   ProgressDialog pr = ProgressDialog(context: context);
   pr.show(max: 600, msg: 'Procesando Consulta...');
@@ -294,8 +377,96 @@ Future<void> _cargarDatos(int id) async {
   }
 }
 
+Future<void> launchMail(String toEmail) async {
+  final Uri mailUri = Uri(
+    scheme: 'mailto',
+    path: toEmail,
+    queryParameters: {
+      'subject': 'Hola desde Flutter',
+      'body': 'Este mensaje se genera desde tu app.'
+    },
+  );
+  if (await canLaunchUrl(mailUri)) {
+    await launchUrl(mailUri);
+  } else {
+    throw 'No se pudo abrir la app de correo';
+  }
+}
+
+Future<void> sendWhatsAppWeb({
+  required String phoneNumber, // sin '+' al inicio
+  required String message,
+}) async {
+  try {
+    final link = WhatsAppUnilink(
+      phoneNumber: phoneNumber,
+      text: message,
+    );
+    final uri = link.asUri();
+
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      // Fallback manual a wa.me
+      final fallback = Uri.parse('https://wa.me/$phoneNumber?text=${Uri.encodeComponent(message)}');
+      await launchUrl(fallback, mode: LaunchMode.externalApplication);
+    }
+  } on Exception catch (e) {
+    AwesomeDialog(
+      // ignore: use_build_context_synchronously
+      context: context,
+      animType: AnimType.bottomSlide,
+      dialogType: DialogType.error,
+      title: 'Odontológico',
+      desc: e.toString(),
+      btnOkText: 'Cerrar',
+      btnOkOnPress: () {},
+    ).show();
+  }
+
+}
+
+void sendWhatsAppMessage({
+  required String phoneNumber,
+  required String message,
+}) async {
+  final encoded = Uri.encodeComponent(message);
+  final uri = Platform.isIOS
+      ? Uri.parse('https://wa.me/$phoneNumber?text=$encoded')
+      : Uri.parse('whatsapp://send?phone=$phoneNumber&text=$encoded');
+
+  if (await canLaunchUrl(uri)) {
+    await launchUrl(uri);
+  } else {
+    throw 'No se pudo lanzar WhatsApp: $uri';
+  }
+}
+
+Future<void> launchWhatsApp() async {
+  final link = WhatsAppUnilink(
+    phoneNumber: '+593959203165',  // con código país, se limpia internamente
+    text: 'Mensaje usando whatsapp_unilink',
+  );
+
+  final uri = link.asUri();
+  if (await canLaunchUrl(uri)) {
+    await launchUrl(uri);
+  } else {
+    throw 'No se pudo abrir WhatsApp con $uri';
+  }
+}
+
 @override
 Widget build(BuildContext context) {
+  if (_isLoading) {
+    if(unavez==0) {
+      setState(() {
+        unavez = 1;
+      });      
+      _cargarDatosIni();
+    }
+    return Center(child: CircularProgressIndicator());
+  }
   //final isSmallScreen = MediaQuery.of(context).size.width < 600;
   return Scaffold(
     appBar: AppBar(title: Text('Cita Paciente', 
@@ -314,9 +485,13 @@ Widget build(BuildContext context) {
               setState(() {
                 _isGrabado = false;
               });
-              if (_idController.text=='0') {
+              if (_idController.text=='') {
+                ToastMSG.showInfo(context, 'enviando mensaje (${_idController.text})', 2);
+                sendWhatsAppWeb(phoneNumber: '+593959203165', message: 'Hola desde Flutter');
                 _guardarDatos();
               } else {
+                ToastMSG.showInfo(context, 'enviando mensaje (${_idController.text})', 2);
+                sendWhatsAppWeb(phoneNumber: '+593959203165', message: 'Hola desde Flutter...');
                 _updateDatos();
               }
               

@@ -629,7 +629,7 @@ class _PacientesState extends State<Pacientes> {
                     padding: const EdgeInsets.all(2),
                   ),
                 ),
-              ),              
+              ), 
             ],
           );
         },

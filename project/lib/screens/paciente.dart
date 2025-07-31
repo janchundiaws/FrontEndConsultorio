@@ -54,15 +54,7 @@ final List<Map<String, String>> _genero = [
   {'codigo': 'F', 'descripcion': 'Femenino'},
  ];
 
-final List<Map<String, String>> _tipoDoc =  [
-  {'codigo': '0', 'descripcion': '-- Sin Selección --'},
-  {'codigo': '1', 'descripcion': 'CÉDULA'},
-  {'codigo': '2', 'descripcion': 'RUC'},
-  {'codigo': '3', 'descripcion': 'PASAPORTE'},
-  {'codigo': '4', 'descripcion': 'CONSUMIDOR FINAL'},
-  {'codigo': '5', 'descripcion': 'ID DEL EXTERIOR'},
-  {'codigo': '6', 'descripcion': 'PLACA'},
-];
+final List<Map<String, String>> _tipoDoc =  [];
 
 final List<Map<String, String>> _estadoCivil =  [
   {'codigo': '0', 'descripcion': '-- Sin Selección --'},
@@ -74,17 +66,7 @@ final List<Map<String, String>> _estadoCivil =  [
   {'codigo': '6', 'descripcion': 'Unión Libre'},
 ];
 
-final List<Map<String, String>> _tipoSangre =  [
-  {'codigo': '0', 'descripcion': '-- Sin Selección --'},
-  {'codigo': '1', 'descripcion': 'A+'},
-  {'codigo': '2', 'descripcion': 'A-'},
-  {'codigo': '3', 'descripcion': 'B+'},
-  {'codigo': '4', 'descripcion': 'B-'},
-  {'codigo': '5', 'descripcion': 'O+'},
-  {'codigo': '6', 'descripcion': 'O-'},
-  {'codigo': '7', 'descripcion': 'AB+'},
-  {'codigo': '8', 'descripcion': 'AB-'},
-];
+final List<Map<String, String>> _tipoSangre =  [];
 
 // Expresión regular estándar para correos electrónicos válidos
 final RegExp _emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
@@ -93,17 +75,28 @@ final _formKey = GlobalKey<FormState>();
 
 @override
 void initState() {
-  _limpiarVar();
   super.initState();
+  _limpiarVar();
+  
   WidgetsBinding.instance.addPostFrameCallback((_) {
     final int? idPatient = ModalRoute.of(context)?.settings.arguments as int?;
+
+    llamadas();
 
     if (idPatient != null) {
       // Actualiza el controlador del ID con el valor recibido
       _idController.text = idPatient.toString();
-      _cargarDatos(idPatient);
+      llamadas2(idPatient);
     }
   });
+}
+
+void llamadas() async {
+  await _cargarDatosIni();
+}
+
+void llamadas2(int idPatient) async {
+  await _cargarDatos(idPatient);
 }
 
 void _limpiarVar() {
@@ -299,6 +292,72 @@ void _updateDatos() async {
 /*     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Por favor, complete el formulario')),
     ); */
+  }
+}
+
+Future<void> _cargarDatosIni() async {
+  //ProgressDialog pr2 = ProgressDialog(context: context);
+  //pr2.show(max: 600, msg: 'Procesando Consulta 2...');
+
+  var headersList = map;
+  final headers = {
+    'Authorization': 'Bearer $token',
+  };
+  headersList.addAll(headers);
+  var url0 = Uri.parse('$baseUrl/api/documentType');
+
+  List<Map<String, String>> tipoDoc2 =  [];
+  List<Map<String, String>> tipoSangre2 = [];
+  try {
+    // tipo de documentos
+    final res0 = await http.get(url0, headers: headersList);
+
+    if (res0.statusCode >= 200 && res0.statusCode < 300) {
+      final jsonData0 = jsonDecode(res0.body);
+
+      tipoDoc2.add({'codigo': '0', 'descripcion': '-- Sin Selección --'});
+      jsonData0.toList().forEach((element) {
+        tipoDoc2.add({
+          'codigo': element['id'],
+          'descripcion': element['name']
+        });
+      });
+    } 
+
+    // tipo sangre
+    var url2 = Uri.parse('$baseUrl/api/bloodType');
+    final res2 = await http.get(url2, headers: headersList);
+
+    if (res2.statusCode >= 200 && res2.statusCode < 300) {
+      final jsonData2 = jsonDecode(res2.body);
+
+      tipoSangre2.add({'codigo': '0', 'descripcion': '-- Sin Selección --'});
+      jsonData2.toList().forEach((element2) {
+        tipoSangre2.add({
+          'codigo': element2['id'],
+          'descripcion': element2['name']
+        });
+      });
+    }   
+
+    setState(() {
+      _tipoDoc.addAll(tipoDoc2);
+      _tipoSangre.addAll(tipoSangre2);
+    });
+
+    //pr2.close();
+  } on Exception catch (e) {
+    //pr2.close();
+    AwesomeDialog(
+      // ignore: use_build_context_synchronously
+      context: context,
+      animType: AnimType.bottomSlide,
+      dialogType: DialogType.error,
+      title: 'Odontológico',
+      desc: e.toString(),
+      btnOkText: 'Cerrar',
+      btnOkOnPress: () {},
+    ).show();
   }
 }
 
