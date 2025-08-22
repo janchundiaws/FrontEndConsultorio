@@ -11,10 +11,13 @@ import 'package:flutter/material.dart';
 import 'package:odontologo/screens/button_back.dart';
 import 'package:pluto_grid/pluto_grid.dart';
 import 'package:responsive_grid/responsive_grid.dart';
-import 'package:odontologo/variables_globales.dart';
 import 'package:group_radio_button/group_radio_button.dart';
-import 'package:http/http.dart' as http;
+import 'package:odontologo/services/http_interceptor.dart';
+import 'package:odontologo/widgets/connection_status.dart';
+import 'package:odontologo/services/pdf_service.dart';
+import 'package:odontologo/screens/pdf_viewer_screen.dart';
 import 'package:sn_progress_dialog/progress_dialog.dart';
+import 'package:odontologo/widgets/toast_msg.dart';
 
 // ignore: camel_case_types
 class Pacientes extends StatefulWidget {
@@ -72,16 +75,14 @@ class _PacientesState extends State<Pacientes> {
                 animType: AnimType.bottomSlide,
                 dialogType: DialogType.question,
                 title: '+ Odontología ',
-                desc: 'Desea Imprimir Paciente ?',
+                desc: '¿Desea generar el PDF del paciente seleccionado?',
                 btnOkText: 'SI',
                 btnOkOnPress: () async {
-
+                  await _generarYMostrarPdf();
                 },
                 btnCancelText: 'NO',
                 btnCancelOnPress: () {},
               ).show();
-
-              setState(() {});
             },
 
           ),
@@ -97,10 +98,10 @@ class _PacientesState extends State<Pacientes> {
                 animType: AnimType.bottomSlide,
                 dialogType: DialogType.question,
                 title: '+ Odontología ',
-                desc: 'Desea Eliminar Paciente ?',
+                desc: '¿Desea eliminar el paciente seleccionado?',
                 btnOkText: 'SI',
                 btnOkOnPress: () async {
-
+                  await _eliminarPaciente();
                 },
                 btnCancelText: 'NO',
                 btnCancelOnPress: () {},
@@ -110,18 +111,23 @@ class _PacientesState extends State<Pacientes> {
         ],
       ),
 
-      appBar: AppBar(title: const Text('Lista de Pacientes', style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold),),
-                    //actions: [ButtonBack(),],
-                    leading: ButtonBack(),
-                    ),
+      appBar: AppBar(
+        title: const Text('Lista de Pacientes', style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold),),
+        leading: ButtonBack(),
+        actions: [
+          AppBarConnectionStatus(),
+        ],
+      ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
 
-      body: Form(
-        key: _formKey,
-        child: SafeArea(
-          child: SingleChildScrollView(
-            child: Column(
-              children: [
+      body: Stack(
+        children: [
+          Form(
+            key: _formKey,
+            child: SafeArea(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
                 Container(
                   padding: const EdgeInsets.all(5),
                   margin: const EdgeInsets.all(10),
@@ -265,9 +271,11 @@ class _PacientesState extends State<Pacientes> {
                   ),
                 ),
               ],
+                ),
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -281,8 +289,14 @@ class _PacientesState extends State<Pacientes> {
           padding: WidgetStateProperty.all<EdgeInsets>(const EdgeInsets.symmetric(vertical:10,horizontal: 5)
           )),
       onPressed: () async {
+        if (_buscarPacienteController.text.trim().isEmpty) {
+          ToastMSG.showError(context, 'Ingrese un dato a buscar...', 2);
+          return;
+        }
         await consultaPacientes();
-
+        setState(() {
+          _buscarPacienteController.clear();
+        });
       },
       icon: const Icon(Icons.search_rounded, color: Colors.white70,),
       ),
@@ -293,24 +307,19 @@ class _PacientesState extends State<Pacientes> {
     ProgressDialog pr = ProgressDialog(context: context);
     pr.show(max: 600, msg: 'Procesando...');
     
-    var headersList = map;
-    final headers = {
-      'Authorization': 'Bearer $token',
-    };
-    headersList.addAll(headers);
-    
-    var url = Uri.parse('$baseUrl/api/patients');
-    //print(url);
-    //print(headers);
     _lisDocumentDetails.clear();
     try {
-      final res = await http.get(url, headers: headersList,);
+      var url = '/api/patients';
+      if (_verticalGroupValue == "Document Id") {
+        url = '/api/patients/document/${_buscarPacienteController.text.trim()}';
+      } else {
+        url = '/api/patients/name/${_buscarPacienteController.text.trim()}';
+      }
+
+      final res = await HttpInterceptor.get(url, headers: {});
     
       if (res.statusCode >= 200 && res.statusCode < 300) {
         final jsonData = jsonDecode(res.body);
-        //print('jsonData $jsonData');
-        //final List<Patient> patients = jsonData.map((e) => Patient.fromJson(e)).toList();
-        //print('patients $patients');
 
         jsonData.toList().forEach((element) {
             final birthDateStr = element['birth_date'] ?? '';
@@ -329,21 +338,6 @@ class _PacientesState extends State<Pacientes> {
             , 'id': element['id']
           }); 
         });
-
-/*         patients.toList().forEach((element) {
-          _lisDocumentDetails.add({
-            'Seleccion': false
-            ,'historia': '0'
-            ,'cedula': element.documentId
-            , 'apellidos': element.lastName 
-            , 'nombres': element.name
-            , 'edad': '30'
-            , 'telefonos': element.phone
-            , 'email': element.email
-            , 'id': element.id
-          }); 
-        }); */
-
       } 
     
       setState(() {
@@ -649,6 +643,269 @@ class _PacientesState extends State<Pacientes> {
       edad--;
     }
     return edad;
+  }
+
+  Future<Map<String, dynamic>?> _obtenerDatosCompletosPaciente(int patientId) async {
+    try {
+      final res = await HttpInterceptor.get('/api/patients/id/$patientId', headers: {});
+      
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        final jsonData = jsonDecode(res.body);
+        Map<String, dynamic> patientData;
+        
+        // Manejar tanto array como objeto único
+        if (jsonData is List) {
+          patientData = jsonData.first;
+        } else {
+          patientData = jsonData;
+        }
+
+        // Calcular edad
+        final birthDateStr = patientData['birth_date'] ?? '';
+        final edad = birthDateStr.isNotEmpty ? calcularEdad(birthDateStr) : 0;
+
+        return {
+          'documentId': patientData['document_id'] ?? '',
+          'name': patientData['name'] ?? '',
+          'lastName': patientData['last_name'] ?? '',
+          'birthDate': patientData['birth_date'] ?? '',
+          'edad': edad,
+          'address': patientData['address'] ?? '',
+          'phone': patientData['phone'] ?? '',
+          'email': patientData['email'] ?? '',
+          'maritalStatus': patientData['marital_status_id'] ?? '',
+          'bloodType': patientData['blood_type_id'] ?? '',
+          'observations': patientData['occupation'] ?? 'Sin observaciones',
+        };
+      }
+    } catch (e) {
+      print('Error obteniendo datos del paciente: $e');
+    }
+    return null;
+  }
+
+  Future<void> _generarYMostrarPdf() async {
+    // Obtener el paciente seleccionado
+    final selectedRows = stateManager.rows.where((row) {
+      final isSelected = row.cells['Seleccion']?.value;
+      return isSelected == true || isSelected == 'true';
+    }).toList();
+
+    if (selectedRows.isEmpty) {
+      AwesomeDialog(
+        context: context,
+        animType: AnimType.bottomSlide,
+        dialogType: DialogType.warning,
+        title: 'Selección Requerida',
+        desc: 'Por favor seleccione un paciente para generar el PDF',
+        btnOkText: 'Entendido',
+        btnOkOnPress: () {},
+      ).show();
+      return;
+    }
+
+    if (selectedRows.length > 1) {
+      AwesomeDialog(
+        context: context,
+        animType: AnimType.bottomSlide,
+        dialogType: DialogType.warning,
+        title: 'Múltiples Selecciones',
+        desc: 'Por favor seleccione solo un paciente para generar el PDF',
+        btnOkText: 'Entendido',
+        btnOkOnPress: () {},
+      ).show();
+      return;
+    }
+
+    final selectedRow = selectedRows.first;
+    final patientId = selectedRow.cells['id2']?.value as int?;
+     
+    if (patientId == null) {
+      AwesomeDialog(
+        context: context,
+        animType: AnimType.bottomSlide,
+        dialogType: DialogType.error,
+        title: 'Error',
+        desc: 'No se pudo obtener el ID del paciente',
+        btnOkText: 'Cerrar',
+        btnOkOnPress: () {},
+      ).show();
+      return;
+    }
+
+    // Mostrar diálogo de progreso
+    ProgressDialog pr = ProgressDialog(context: context);
+    pr.show(max: 600, msg: 'Generando PDF...');
+
+    try {
+      // Obtener datos completos del paciente
+      final patientData = await _obtenerDatosCompletosPaciente(patientId);
+      
+      if (patientData == null) {
+        throw Exception('No se pudieron obtener los datos del paciente');
+      }
+
+      // Generar PDF
+      final pdfBytes = await PdfService.generatePatientPdf(patientData);
+      
+      pr.close();
+
+      // Mostrar el PDF
+      final patientName = '${patientData['name']} ${patientData['lastName']}';
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PdfViewerScreen(
+              pdfBytes: pdfBytes,
+              patientName: patientName,
+            ),
+          ),
+        );
+      }
+
+    } catch (e) {
+      pr.close();
+      if (mounted) {
+        AwesomeDialog(
+          context: context,
+          animType: AnimType.bottomSlide,
+          dialogType: DialogType.error,
+          title: 'Error',
+          desc: 'Error generando el PDF: $e',
+          btnOkText: 'Cerrar',
+          btnOkOnPress: () {},
+        ).show();
+      }
+    }
+  }
+
+  Future<void> _eliminarPaciente() async {
+     // Obtener el paciente seleccionado
+     final selectedRows = stateManager.rows.where((row) {
+       final isSelected = row.cells['Seleccion']?.value;
+       return isSelected == true || isSelected == 'true';
+     }).toList();
+
+     if (selectedRows.isEmpty) {
+       AwesomeDialog(
+         context: context,
+         animType: AnimType.bottomSlide,
+         dialogType: DialogType.warning,
+         title: 'Selección Requerida',
+         desc: 'Por favor seleccione un paciente para eliminar',
+         btnOkText: 'Entendido',
+         btnOkOnPress: () {},
+       ).show();
+       return;
+     }
+
+     if (selectedRows.length > 1) {
+       AwesomeDialog(
+         context: context,
+         animType: AnimType.bottomSlide,
+         dialogType: DialogType.warning,
+         title: 'Múltiples Selecciones',
+         desc: 'Por favor seleccione solo un paciente para eliminar',
+         btnOkText: 'Entendido',
+         btnOkOnPress: () {},
+       ).show();
+       return;
+     }
+
+     final selectedRow = selectedRows.first;
+     final patientId = selectedRow.cells['id2']?.value as int?;
+     final patientName = '${selectedRow.cells['Nombres']?.value} ${selectedRow.cells['Apellidos']?.value}';
+     
+     if (patientId == null) {
+       AwesomeDialog(
+         context: context,
+         animType: AnimType.bottomSlide,
+         dialogType: DialogType.error,
+         title: 'Error',
+         desc: 'No se pudo obtener el ID del paciente',
+         btnOkText: 'Cerrar',
+         btnOkOnPress: () {},
+       ).show();
+       return;
+     }
+
+     // Confirmación final antes de eliminar
+     AwesomeDialog(
+       context: context,
+       animType: AnimType.bottomSlide,
+       dialogType: DialogType.warning,
+       title: 'Confirmar Eliminación',
+       desc: '¿Está seguro que desea eliminar al paciente:\n\n$patientName?\n\nEsta acción no se puede deshacer.',
+       btnOkText: 'ELIMINAR',
+       btnOkColor: Colors.red,
+       btnOkOnPress: () async {
+         await _ejecutarEliminacion(patientId, patientName);
+       },
+       btnCancelText: 'CANCELAR',
+       btnCancelOnPress: () {},
+     ).show();
+   }
+
+  Future<void> _ejecutarEliminacion(int patientId, String patientName) async {
+    // Mostrar diálogo de progreso
+    ProgressDialog pr = ProgressDialog(context: context);
+    pr.show(max: 600, msg: 'Eliminando paciente...');
+
+    try {
+      // Enviar petición DELETE a la API
+      final res = await HttpInterceptor.delete('/api/patients/$patientId', headers: {});
+        
+      pr.close();
+
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+          // Eliminación exitosa
+        if (mounted) {
+          AwesomeDialog(
+            context: context,
+            animType: AnimType.bottomSlide,
+            dialogType: DialogType.success,
+            title: 'Eliminación Exitosa',
+            desc: 'El paciente $patientName ha sido eliminado correctamente.',
+            btnOkText: 'Aceptar',
+            btnOkOnPress: () {
+              // Recargar la lista de pacientes
+              consultaPacientes();
+            },
+          ).show();
+        }
+      } else {
+        // Error en la respuesta del servidor
+        final responseBody = res.body.isNotEmpty ? jsonDecode(res.body) : {};
+        final errorMessage = responseBody['message'] ?? 'Error al eliminar el paciente';
+        
+        if (mounted) {
+          AwesomeDialog(
+            context: context,
+            animType: AnimType.bottomSlide,
+            dialogType: DialogType.error,
+            title: 'Error del Servidor',
+            desc: errorMessage,
+            btnOkText: 'Cerrar',
+            btnOkOnPress: () {},
+          ).show();
+        }
+      }
+
+    } catch (e) {
+      pr.close();
+      if (mounted) {
+        AwesomeDialog(
+          context: context,
+          animType: AnimType.bottomSlide,
+          dialogType: DialogType.error,
+          title: 'Error de Conexión',
+          desc: 'Error al conectar con el servidor: $e',
+          btnOkText: 'Cerrar',
+          btnOkOnPress: () {},
+        ).show();
+      }
+    }
   }
 
 

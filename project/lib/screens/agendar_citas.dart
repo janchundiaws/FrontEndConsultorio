@@ -1,13 +1,10 @@
 
 import 'package:awesome_dialog/awesome_dialog.dart';
 import 'package:odontologo/screens/button_back.dart';
-import 'package:odontologo/variables_globales.dart';
 import 'package:odontologo/widgets/toast_msg.dart';
 import 'package:flutter/material.dart';
 import 'package:pluto_grid/pluto_grid.dart';
 import 'package:responsive_grid/responsive_grid.dart';
-import 'package:http/http.dart' as http;
-import 'package:sn_progress_dialog/progress_dialog.dart';
 
 class AgendarCitas extends StatefulWidget {
   const AgendarCitas({super.key});
@@ -26,74 +23,35 @@ class _AgendarCitasScreen extends State<AgendarCitas>{
   final List _lisDocumentDetails = [];
   List<PlutoColumn> columns = [];
 
-// para validación del formulario
-final _formKey = GlobalKey<FormState>();
+  // para validación del formulario
+  final _formKey = GlobalKey<FormState>();
 
-@override
-void initState() {
-  _limpiarVar();
-  super.initState();
-  columns = _columnsRender();
-}
-
-void _limpiarVar() {
-
-  id = 0;
-  isReadOnly = false;
-  
-}
-
-bool soloLetras(String texto) {
-  return RegExp(r"^[A-ZÑÁÉÍÓÚÜ\s]+$").hasMatch(texto.toUpperCase());
-}
-
-bool esPantallaGrande(BuildContext context) {
-  return MediaQuery.of(context).size.width >= 600;
-}
-
-Future<void> _cargarDatos(int id) async {
-  ProgressDialog pr = ProgressDialog(context: context);
-  pr.show(max: 600, msg: 'Procesando Consulta...');
-
-  var headersList = map;
-  final headers = {
-    'Authorization': 'Bearer $token',
-  };
-  headersList.addAll(headers);
-  var url = Uri.parse('$baseUrl/api/patients/$id');
-
-  try {
-    final res = await http.get(url, headers: headersList);
-
-    if (res.statusCode >= 200 && res.statusCode < 300) {
-      //Patient patient = Patient.fromJson(jsonDecode(res.body));
-      
-      setState(() {
-        // actualiza campos de la pantalla con el codigo existente
-
-
-      });
-    } 
-    pr.close();
-  } on Exception catch (e) {
-    pr.close();
-    AwesomeDialog(
-      // ignore: use_build_context_synchronously
-      context: context,
-      animType: AnimType.bottomSlide,
-      dialogType: DialogType.error,
-      title: 'Odontológico',
-      desc: e.toString(),
-      btnOkText: 'Cerrar',
-      btnOkOnPress: () {},
-    ).show();
+  @override
+  void initState() {
+    _limpiarVar();
+    super.initState();
+    columns = _columnsRender();
   }
-}
 
-@override
-void dispose() {
-  super.dispose();
-}
+  void _limpiarVar() {
+
+    id = 0;
+    isReadOnly = false;
+    
+  }
+
+  bool soloLetras(String texto) {
+    return RegExp(r"^[A-ZÑÁÉÍÓÚÜ\s]+$").hasMatch(texto.toUpperCase());
+  }
+
+  bool esPantallaGrande(BuildContext context) {
+    return MediaQuery.of(context).size.width >= 600;
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
 
 @override
 Widget build(BuildContext context) {

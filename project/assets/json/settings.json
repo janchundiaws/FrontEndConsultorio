@@ -1,0 +1,124 @@
+{
+  "transaction_types": {
+    "incoming": [
+      {
+        "code": "PURCHASE",
+        "name": "Compra",
+        "description": "Compra de suministros a proveedores",
+        "color": "#4CAF50"
+      },
+      {
+        "code": "DONATION",
+        "name": "Donación",
+        "description": "Suministros recibidos como donación",
+        "color": "#2196F3"
+      },
+      {
+        "code": "RETURN",
+        "name": "Devolución",
+        "description": "Devolución de suministros por parte del cliente",
+        "color": "#FF9800"
+      },
+      {
+        "code": "ADJUSTMENT",
+        "name": "Ajuste",
+        "description": "Ajuste de inventario por conteo físico",
+        "color": "#9C27B0"
+      },
+      {
+        "code": "TRANSFER",
+        "name": "Transferencia",
+        "description": "Transferencia desde otro almacén",
+        "color": "#607D8B"
+      }
+    ],
+    "outgoing": [
+      {
+        "code": "SALE",
+        "name": "Venta",
+        "description": "Venta de suministros a clientes",
+        "color": "#E91E63"
+      },
+      {
+        "code": "CONSUMPTION",
+        "name": "Consumo",
+        "description": "Consumo interno del consultorio",
+        "color": "#795548"
+      },
+      {
+        "code": "DAMAGED",
+        "name": "Dañado",
+        "description": "Suministros dañados o vencidos",
+        "color": "#F44336"
+      },
+      {
+        "code": "TRANSFER_OUT",
+        "name": "Transferencia Salida",
+        "description": "Transferencia a otro almacén",
+        "color": "#607D8B"
+      }
+    ]
+  },
+  "status_options": {
+    "incoming": [
+      {
+        "code": "PENDING",
+        "name": "Pendiente",
+        "description": "Transacción pendiente de procesar",
+        "color": "#FF9800"
+      },
+      {
+        "code": "APPROVED",
+        "name": "Aprobada",
+        "description": "Transacción aprobada y procesada",
+        "color": "#4CAF50"
+      },
+      {
+        "code": "REJECTED",
+        "name": "Rechazada",
+        "description": "Transacción rechazada",
+        "color": "#F44336"
+      },
+      {
+        "code": "CANCELLED",
+        "name": "Cancelada",
+        "description": "Transacción cancelada",
+        "color": "#9E9E9E"
+      }
+    ],
+    "outgoing": [
+      {
+        "code": "PENDING",
+        "name": "Pendiente",
+        "description": "Transacción pendiente de procesar",
+        "color": "#FF9800"
+      },
+      {
+        "code": "PROCESSED",
+        "name": "Procesada",
+        "description": "Transacción procesada y entregada",
+        "color": "#4CAF50"
+      },
+      {
+        "code": "CANCELLED",
+        "name": "Cancelada",
+        "description": "Transacción cancelada",
+        "color": "#9E9E9E"
+      }
+    ]
+  },
+  "app_settings": {
+    "default_currency": "USD",
+    "default_language": "es",
+    "date_format": "dd/MM/yyyy",
+    "decimal_places": 2,
+    "pagination": {
+      "default_page_size": 20,
+      "max_page_size": 100
+    },
+    "timeout": {
+      "api_request": 30000,
+      "connection_check": 5000
+    }
+  }
+} 

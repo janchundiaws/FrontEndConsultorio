@@ -3,15 +3,16 @@ import 'dart:convert';
 import 'package:awesome_dialog/awesome_dialog.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:odontologo/object/patient.dart';
+import 'package:odontologo/object/clinical_history.dart';
 import 'package:odontologo/screens/button_back.dart';
 import 'package:odontologo/services/mayusculas.dart';
-import 'package:odontologo/variables_globales.dart';
+import 'package:odontologo/services/clinical_history_service.dart';
 import 'package:odontologo/widgets/toast_msg.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pluto_grid/pluto_grid.dart';
 import 'package:responsive_grid/responsive_grid.dart';
-import 'package:http/http.dart' as http;
+import 'package:odontologo/services/http_interceptor.dart';
 import 'package:sn_progress_dialog/progress_dialog.dart';
 
 class HistoriaClinica extends StatefulWidget {
@@ -33,11 +34,11 @@ class _HistoriaClinicaScreen extends State<HistoriaClinica>{
 
   int id = 0;
   bool isReadOnly = false;
-  bool _isGrabado = false;
+  //bool _isGrabado = false;
   bool _isLoading = false;
 
   late final PlutoGridStateManager stateManager;
-  final List _lisDocumentDetails = [];
+  final List<ClinicalHistory> _clinicalHistories = [];
   List<PlutoColumn> columns = [];
 
 // para validación del formulario
@@ -67,7 +68,8 @@ void initState() {
       cedulaController.text = documentId.toString();
       nombresController.text = nombres.toString();
       apellidosController.text = apellidos.toString();
-      //_cargarDatos(idPatient);
+      _cargarDatos(idPatient);
+      _cargarHistoriasClinicas(idPatient);
     }
   });
 }
@@ -80,10 +82,11 @@ void _limpiarVar() {
 
   id = 0;
   isReadOnly = false;
-  _isGrabado = false;
+  //_isGrabado = false;
   _isLoading = false;
   
   _limpiarVarFile();
+  _clinicalHistories.clear();
 }
 
 void _limpiarVarFile() {
@@ -104,143 +107,34 @@ bool esPantallaGrande(BuildContext context) {
   return MediaQuery.of(context).size.width >= 600;
 }
 
-void _guardarDatos() async {
-  if (_formKey.currentState?.validate() ?? false) {
-    // ✅ Formulario válido, guardar datos
-    ProgressDialog pr = ProgressDialog(context: context);
-    pr.show(max: 600, msg: 'Procesando Grabar...');
-
-/*     CreatePatient objPatient = CreatePatient(
-      documentId: cedulaController.text,
-      name: nombresController.text,
-      lastName: apellidosController.text,
-
-      occupation: ocupacionReferenciaController.text
-    ); */
-
-    var headersList = map;
-    final headers = {
-      'Authorization': 'Bearer $token',
-    };
-    headersList.addAll(headers);
-
-    var url = Uri.parse('$baseUrl/api/patients');
-
-    try {
-      final res = await http.post(url, headers: headersList); // , body: jsonEncode(objPatient)
-      
-      if (res.statusCode >= 200 && res.statusCode < 300) {
-        Patient patient = Patient.fromJson(jsonDecode(res.body));
-
-        setState(() {
-          _idController.text = patient.id.toString();
-          _isGrabado = true;
-        });
-      }
-      pr.close();
-    } on Exception catch (e) {
-      pr.close();
-      AwesomeDialog(
-        // ignore: use_build_context_synchronously
-        context: context,
-        animType: AnimType.bottomSlide,
-        dialogType: DialogType.error,
-        title: 'Odontológico',
-        desc: e.toString(),
-        btnOkText: 'Cerrar',
-        btnOkOnPress: () {},
-      ).show();
-    }
-
-  } else {
-    // ❌ Formulario inválido, mostrar error
-    ToastMSG.showError(context, 'Por favor, complete el formulario', 2);
-/*     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Por favor, complete el formulario')),
-    ); */
-  }
-}
-
-void _updateDatos() async {
-  if (_formKey.currentState?.validate() ?? false) {
-    // ✅ Formulario válido, guardar datos
-    ProgressDialog pr = ProgressDialog(context: context);
-    pr.show(max: 600, msg: 'Procesando Actualización...');
-
-/*     CreatePatient objPatient = CreatePatient(
-      documentId: cedulaController.text,
-      name: nombresController.text,
-      lastName: apellidosController.text,
-      occupation: ocupacionReferenciaController.text
-    ); */
-
-    var headersList = map;
-    final headers = {
-      'Authorization': 'Bearer $token',
-    };
-    headersList.addAll(headers);
-
-    var url = Uri.parse('$baseUrl/api/patients/${_idController.text}');
-
-    try {
-      final res = await http.put(url, headers: headersList);  // , body: jsonEncode(objPatient)
-      
-      if (res.statusCode >= 200 && res.statusCode < 300) {
-        Patient patient = Patient.fromJson(jsonDecode(res.body));
-
-        setState(() {
-          _idController.text = patient.id.toString();
-          _isGrabado = true;
-        });
-      }
-      pr.close();
-    } on Exception catch (e) {
-      pr.close();
-      AwesomeDialog(
-        // ignore: use_build_context_synchronously
-        context: context,
-        animType: AnimType.bottomSlide,
-        dialogType: DialogType.error,
-        title: 'Odontológico',
-        desc: e.toString(),
-        btnOkText: 'Cerrar',
-        btnOkOnPress: () {},
-      ).show();
-    }
-
-  } else {
-    // ❌ Formulario inválido, mostrar error
-    ToastMSG.showError(context, 'Por favor, complete el formulario', 2);
-/*     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Por favor, complete el formulario')),
-    ); */
-  }
-}
-
 Future<void> _cargarDatos(int id) async {
   ProgressDialog pr = ProgressDialog(context: context);
   pr.show(max: 600, msg: 'Procesando Consulta...');
 
-  var headersList = map;
-  final headers = {
-    'Authorization': 'Bearer $token',
-  };
-  headersList.addAll(headers);
-  var url = Uri.parse('$baseUrl/api/patients/$id');
-
   try {
-    final res = await http.get(url, headers: headersList);
+    final res = await HttpInterceptor.get('/api/patients/id/$id', headers: {});
 
     if (res.statusCode >= 200 && res.statusCode < 300) {
-      Patient patient = Patient.fromJson(jsonDecode(res.body));
+      final jsonData = jsonDecode(res.body);
       
+      // Handle both array and single object responses
+      Map<String, dynamic> patientData;
+      if (jsonData is List) {
+        if (jsonData.isEmpty) {
+          throw Exception('No se encontró el paciente');
+        }
+        patientData = jsonData.first;
+      } else {
+        patientData = jsonData;
+      }
+      
+      Patient patient = Patient.fromJson(patientData);
       setState(() {
         // actualiza campos de la pantalla con el codigo existente
+        _idController.text = patient.id.toString();
         cedulaController.text = patient.documentId;
         apellidosController.text = patient.lastName;
         nombresController.text = patient.name;
-        //observacionController.text = patient.occupation;
-
       });
     } 
     pr.close();
@@ -256,6 +150,80 @@ Future<void> _cargarDatos(int id) async {
       btnOkText: 'Cerrar',
       btnOkOnPress: () {},
     ).show();
+  }
+}
+
+Future<void> _cargarHistoriasClinicas(int patientId) async {
+  try {
+    final historias = await ClinicalHistoryService.getClinicalHistoriesByPatient(patientId);
+
+    if (historias.isNotEmpty) {
+      setState(() {
+          _clinicalHistories.clear();
+          _clinicalHistories.addAll(historias);
+        });
+    }
+  } on Exception catch (e) {
+    if (mounted) {
+      AwesomeDialog(
+        context: context,
+        animType: AnimType.bottomSlide,
+        dialogType: DialogType.error,
+        title: 'Odontológico',
+        desc: 'Error al cargar historias clínicas: ${e.toString()}',
+        btnOkText: 'Cerrar',
+        btnOkOnPress: () {},
+      ).show();
+    }
+  }
+}
+
+Future<void> _guardarHistoriaClinica() async {
+  if (!_validaDatos()) return;
+
+  setState(() {
+    _isLoading = true;
+  });
+
+  try {
+    final createHistory = CreateClinicalHistory(
+      patientId: int.parse(_idController.text),
+      observation: observacionController.text.trim(),
+      fileName: fileName,
+      fileExtension: extension,
+      fileBase64: base64File,
+    );
+
+    final savedHistory = await ClinicalHistoryService.createClinicalHistory(createHistory);
+    
+    setState(() {
+      _clinicalHistories.add(savedHistory);
+      _isLoading = false;
+    });
+
+    if (mounted) {
+      ToastMSG.showSuccess(context, 'Historia clínica guardada exitosamente', 3);
+      Navigator.of(context).pop();
+    }
+    
+    // Limpiar campos del formulario
+    _limpiarVarFile();
+    
+  } on Exception catch (e) {
+    setState(() {
+      _isLoading = false;
+    });
+    if (mounted) {
+      AwesomeDialog(
+        context: context,
+        animType: AnimType.bottomSlide,
+        dialogType: DialogType.error,
+        title: 'Odontológico',
+        desc: 'Error al guardar historia clínica: ${e.toString()}',
+        btnOkText: 'Cerrar',
+        btnOkOnPress: () {},
+      ).show();
+    }
   }
 }
 
@@ -280,7 +248,6 @@ Future<void> pickAndUploadFile() async {
       });
 
       final base64 = base64Encode(fileBytes);
-      //await uploadToServer(name, base64);
 
       setState(() {
         base64File = base64;
@@ -288,16 +255,17 @@ Future<void> pickAndUploadFile() async {
       });
     } else {
       // Usuario canceló
-      AwesomeDialog(
-        // ignore: use_build_context_synchronously
-        context: context,
-        animType: AnimType.bottomSlide,
-        dialogType: DialogType.error,
-        title: 'Odontológico',
-        desc: 'Selección cancelada...',
-        btnOkText: 'Cerrar',
-        btnOkOnPress: () {},
-      ).show();
+      if (mounted) {
+        AwesomeDialog(
+          context: context,
+          animType: AnimType.bottomSlide,
+          dialogType: DialogType.error,
+          title: 'Odontológico',
+          desc: 'Selección cancelada...',
+          btnOkText: 'Cerrar',
+          btnOkOnPress: () {},
+        ).show();
+      }
     }
   }
 }
@@ -419,7 +387,7 @@ Widget build(BuildContext context) {
                                   padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 4),
                                   child: PlutoGrid(
                                     columns: columns,
-                                    rows: rowsLista(_lisDocumentDetails),
+                                    rows: rowsLista(_clinicalHistories),
                                     mode: PlutoGridMode.normal,
                                     onLoaded: (PlutoGridOnLoadedEvent event) {
                                       stateManager = event.stateManager;
@@ -678,18 +646,20 @@ Widget nameFileField(BuildContext context, TextEditingController nameFileControl
   );
 }
 
-List<PlutoRow> rowsLista(List info) {
+List<PlutoRow> rowsLista(List<ClinicalHistory> historias) {
   List<PlutoRow> retorno = [];
   try {
-    for (var rowInfo in info) {
+    for (var historia in historias) {
       retorno.add(
         PlutoRow(
           cells: {
-            'Seleccion': PlutoCell(value: rowInfo['Seleccion'] ? 'SI' : 'NO'),
-            'Apellidos': PlutoCell(value: rowInfo['apellidos']),
-            'Nombres': PlutoCell(value: rowInfo['nombres']),
-            'observacion': PlutoCell(value: rowInfo['observacion']),
-            'id2': PlutoCell(value: rowInfo['id']),
+            'Seleccion': PlutoCell(value: false),
+            'Apellidos': PlutoCell(value: apellidosController.text),
+            'Nombres': PlutoCell(value: nombresController.text),
+            'observacion': PlutoCell(value: historia.observation),
+            'fecha': PlutoCell(value: historia.createdAt ?? ''),
+            'archivo': PlutoCell(value: historia.fileName ?? 'Sin archivo'),
+            'id2': PlutoCell(value: historia.id),
           },
         ),
       );
@@ -699,7 +669,7 @@ List<PlutoRow> rowsLista(List info) {
       context: context,
       animType: AnimType.bottomSlide,
       dialogType: DialogType.error,
-      title: 'SPA+ ',
+      title: 'Odontológico',
       desc: e.toString(),
       btnOkText: 'Cerrar',
       btnOkOnPress: () {},
@@ -768,7 +738,27 @@ List<PlutoColumn> _columnsRender() {
       title: 'Observación',
       field: 'observacion',
       backgroundColor: colorHeader,
-      width: 500, 
+      width: 300, 
+      textAlign: PlutoColumnTextAlign.left,
+      type: PlutoColumnType.text(),
+    ),
+  );
+  list.add(
+    PlutoColumn(
+      title: 'Fecha',
+      field: 'fecha',
+      backgroundColor: colorHeader,
+      width: 120, 
+      textAlign: PlutoColumnTextAlign.center,
+      type: PlutoColumnType.text(),
+    ),
+  );
+  list.add(
+    PlutoColumn(
+      title: 'Archivo',
+      field: 'archivo',
+      backgroundColor: colorHeader,
+      width: 150, 
       textAlign: PlutoColumnTextAlign.left,
       type: PlutoColumnType.text(),
     ),
@@ -902,35 +892,7 @@ StatefulBuilder _buildStatefulBuilderAddObs(BuildContext content) {
                                 style: ButtonStyle(backgroundColor: WidgetStateProperty.all<Color>(Colors.green),),
                                 label: Text(_isLoading ? 'Guardando...' : 'Guardar Datos', style: TextStyle(color: Colors.white),),
                                 onPressed: _isLoading ? null : () async {
-                                  if(_validaDatos()) {
-                                    setState(() {
-                                      _isGrabado = false;
-                                      _isLoading = true;
-                                    });
-                                    //await _grbDatosCocina();
-                                    if(_isGrabado==true) {
-                                      // ignore: use_build_context_synchronously
-                                      ToastMSG.showSuccess(context, 'Registro Guardado con Exito...', 3);
-                                      // ignore: use_build_context_synchronously
-                                      Navigator.of(context).pop();
-
-                                      var tmpidControler = _idController.text.toString();
-                                      var tmpnombres = nombresController.text.toString();
-                                      var tmpapellidos = apellidosController.text.toString();
-                                      _limpiarVar();
-                                      setState(() {
-                                        _idController.text = tmpidControler;
-                                        nombresController.text = tmpnombres;
-                                        apellidosController.text = tmpapellidos;
-                                        _isLoading = false;
-                                      });
-                                      //await _obtenerRegistroDet(tmpFechaPrd, null);
-                                    } else {
-                                      setState(() {
-                                        _isLoading = false;
-                                      });
-                                    }
-                                  }
+                                  await _guardarHistoriaClinica();
                                 },
                               ),
                             )

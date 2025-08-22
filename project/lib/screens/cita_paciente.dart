@@ -2,16 +2,19 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:awesome_dialog/awesome_dialog.dart';
-import 'package:expandable_fab_lite/expandable_fab_lite.dart';
+
+import 'package:mailer/mailer.dart';
+import 'package:odontologo/object/email_model.dart';
 import 'package:odontologo/object/patient.dart';
+import 'package:odontologo/object/appointment.dart';
 import 'package:odontologo/screens/button_back.dart';
 import 'package:odontologo/services/mayusculas.dart';
-import 'package:odontologo/variables_globales.dart';
+import 'package:odontologo/services/send_email.dart';
 import 'package:odontologo/widgets/toast_msg.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:responsive_grid/responsive_grid.dart';
-import 'package:http/http.dart' as http;
+import 'package:odontologo/services/http_interceptor.dart';
 import 'package:sn_progress_dialog/progress_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:whatsapp_unilink/whatsapp_unilink.dart';
@@ -38,6 +41,9 @@ class _CitaPacienteScreen extends State<CitaPaciente>{
   TextEditingController appointmentTimeController =TextEditingController();
   TextEditingController reasonController =TextEditingController();
 
+  // Controlador para el status de la cita
+  String _selectedStatus = 'pending';
+
   int id = 0;
   int unavez = 0;
   bool isReadOnly = false;
@@ -57,6 +63,13 @@ class _CitaPacienteScreen extends State<CitaPaciente>{
 
   final List<Map<String, String>> _dentists =  [];
   final List<Map<String, String>> _offices =  [];
+
+  // Opciones de status para las citas
+  final List<Map<String, String>> _statusOptions = [
+    {'value': 'pending', 'label': 'Pendiente'},
+    {'value': 'completed', 'label': 'Completada'},
+    {'value': 'cancelled', 'label': 'Cancelada'},
+  ];
 
 @override
 void initState() {
@@ -88,8 +101,6 @@ void initState() {
         telefonoController.text = telefonos.toString();
         correoController.text = correo.toString();     
       });
-
-      //_cargarDatos(idPatient);
     }
   });
 }
@@ -133,6 +144,7 @@ void _limpiarDet() {
 
   _valuedentists='0';
   _valueoffices='0';
+  _selectedStatus = 'pending';
 }
 
 Future<void> llamadas() async {
@@ -151,130 +163,180 @@ bool esPantallaGrande(BuildContext context) {
 
 void _guardarDatos() async {
   if (_formKey.currentState?.validate() ?? false) {
-    // ✅ Formulario válido, guardar datos
+    // ✅ Formulario válido, guardar cita
     ProgressDialog pr = ProgressDialog(context: context);
-    pr.show(max: 600, msg: 'Procesando Grabar...');
-
-/*     CreatePatient objPatient = CreatePatient(
-      documentId: cedulaController.text,
-      name: nombresController.text,
-      lastName: apellidosController.text,
-
-      occupation: ocupacionReferenciaController.text
-    ); */
-
-    var headersList = map;
-    final headers = {
-      'Authorization': 'Bearer $token',
-    };
-    headersList.addAll(headers);
-
-    var url = Uri.parse('$baseUrl/api/patients');
+    pr.show(max: 600, msg: 'Procesando Cita...');
 
     try {
-      final res = await http.post(url, headers: headersList); // , body: jsonEncode(objPatient)
+      // Validar que los campos requeridos estén completos
+      if (_idController.text.isEmpty || 
+          _valuedentists == '0' || 
+          _valueoffices == '0' || 
+          appointmentTimeController.text.isEmpty || 
+          reasonController.text.isEmpty) {
+        throw Exception('Por favor complete todos los campos requeridos');
+      }
+
+      CreateAppointment appointment = CreateAppointment(
+        patientId: int.parse(_idController.text),
+        dentistId: int.parse(_valuedentists!),
+        officeId: int.parse(_valueoffices!),
+        appointmentTime: appointmentTimeController.text,
+        status: _selectedStatus,
+        reason: reasonController.text,
+      );
+
+      final res = await HttpInterceptor.post(
+        '/api/appointments', 
+        headers: {},
+        body: jsonEncode(appointment.toJson())
+      );
       
       if (res.statusCode >= 200 && res.statusCode < 300) {
-        Patient patient = Patient.fromJson(jsonDecode(res.body));
+        final jsonData = jsonDecode(res.body);
+        Appointment savedAppointment;
+        
+        // Manejar tanto array como objeto único
+        if (jsonData is List) {
+          savedAppointment = Appointment.fromJson(jsonData.first);
+        } else {
+          savedAppointment = Appointment.fromJson(jsonData);
+        }
 
         setState(() {
-          _idController.text = patient.id.toString();
+          id = savedAppointment.id ?? 0;
           _isGrabado = true;
         });
+        
+        await _enviarEmail();
+        
+        if (mounted) {
+          ToastMSG.showSuccess(context, 'Cita guardada exitosamente', 3);
+        }
       }
       pr.close();
     } on Exception catch (e) {
       pr.close();
-      AwesomeDialog(
-        // ignore: use_build_context_synchronously
-        context: context,
-        animType: AnimType.bottomSlide,
-        dialogType: DialogType.error,
-        title: 'Odontológico',
-        desc: e.toString(),
-        btnOkText: 'Cerrar',
-        btnOkOnPress: () {},
-      ).show();
+      if (mounted) {
+        AwesomeDialog(
+          context: context,
+          animType: AnimType.bottomSlide,
+          dialogType: DialogType.error,
+          title: 'Error',
+          desc: e.toString(),
+          btnOkText: 'Cerrar',
+          btnOkOnPress: () {},
+        ).show();
+      }
     }
-
   } else {
     // ❌ Formulario inválido, mostrar error
-    ToastMSG.showError(context, 'Por favor, complete el formulario', 2);
-/*     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Por favor, complete el formulario')),
-    ); */
+    ToastMSG.showError(context, 'Por favor, complete el formulario correctamente', 2);
   }
 }
 
 void _updateDatos() async {
   if (_formKey.currentState?.validate() ?? false) {
-    // ✅ Formulario válido, guardar datos
+    // ✅ Formulario válido, actualizar cita
     ProgressDialog pr = ProgressDialog(context: context);
     pr.show(max: 600, msg: 'Procesando Actualización...');
 
-/*     CreatePatient objPatient = CreatePatient(
-      documentId: cedulaController.text,
-      name: nombresController.text,
-      lastName: apellidosController.text,
-      occupation: ocupacionReferenciaController.text
-    ); */
-
-    var headersList = map;
-    final headers = {
-      'Authorization': 'Bearer $token',
-    };
-    headersList.addAll(headers);
-
-    var url = Uri.parse('$baseUrl/api/patients/${_idController.text}');
-
     try {
-      final res = await http.put(url, headers: headersList);  // , body: jsonEncode(objPatient)
+      // Validar que los campos requeridos estén completos
+      if (_idController.text.isEmpty || 
+          _valuedentists == '0' || 
+          _valueoffices == '0' || 
+          appointmentTimeController.text.isEmpty || 
+          reasonController.text.isEmpty) {
+        throw Exception('Por favor complete todos los campos requeridos');
+      }
+
+      Appointment appointment = Appointment(
+        id: id,
+        patientId: int.parse(_idController.text),
+        dentistId: int.parse(_valuedentists!),
+        officeId: int.parse(_valueoffices!),
+        appointmentTime: appointmentTimeController.text,
+        status: _selectedStatus,
+        reason: reasonController.text,
+      );
+
+      final res = await HttpInterceptor.put(
+        '/api/appointments/$id', 
+        headers: {},
+        body: jsonEncode(appointment.toJson())
+      );
       
       if (res.statusCode >= 200 && res.statusCode < 300) {
-        Patient patient = Patient.fromJson(jsonDecode(res.body));
+        final jsonData = jsonDecode(res.body);
+        Appointment updatedAppointment;
+        
+        // Manejar tanto array como objeto único
+        if (jsonData is List) {
+          updatedAppointment = Appointment.fromJson(jsonData.first);
+        } else {
+          updatedAppointment = Appointment.fromJson(jsonData);
+        }
 
         setState(() {
-          _idController.text = patient.id.toString();
+          reasonController.text = updatedAppointment.reason;
           _isGrabado = true;
         });
+        
+        await _enviarEmail();
+        
+        if (mounted) {
+          ToastMSG.showSuccess(context, 'Cita actualizada exitosamente', 3);
+        }
       }
       pr.close();
     } on Exception catch (e) {
       pr.close();
-      AwesomeDialog(
-        // ignore: use_build_context_synchronously
-        context: context,
-        animType: AnimType.bottomSlide,
-        dialogType: DialogType.error,
-        title: 'Odontológico',
-        desc: e.toString(),
-        btnOkText: 'Cerrar',
-        btnOkOnPress: () {},
-      ).show();
+      if (mounted) {
+        AwesomeDialog(
+          context: context,
+          animType: AnimType.bottomSlide,
+          dialogType: DialogType.error,
+          title: 'Error',
+          desc: e.toString(),
+          btnOkText: 'Cerrar',
+          btnOkOnPress: () {},
+        ).show();
+      }
     }
-
   } else {
     // ❌ Formulario inválido, mostrar error
-    ToastMSG.showError(context, 'Por favor, complete el formulario', 2);
-/*     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Por favor, complete el formulario')),
-    ); */
+    ToastMSG.showError(context, 'Por favor, complete el formulario correctamente', 2);
   }
 }
 
-Future<void> _cargarDatosIni() async {
-  var headersList = map;
-  final headers = {
-    'Authorization': 'Bearer $token',
-  };
-  headersList.addAll(headers);
-  var url0 = Uri.parse('$baseUrl/api/offices');
+Future<void> _enviarEmail() async {
+  if (correoController.text.toString().isEmpty) {
+    ToastMSG.showInfo(context, 'No Hay Correo Definido...', 2);
+    return;
+  }
 
+  final emailData = EmailModel(
+    from: Address('tu_correo@gmail.com', 'Tu Nombre'),
+    recipients: [correoController.text],
+    ccRecipients: [''],
+    bccRecipients: [''],
+    subject: 'Correo desde Flutter',
+    text: 'Este es el contenido en texto plano.',
+    html: '<h2>Hola desde Flutter</h2><p>Este es el cuerpo en HTML.</p>',
+    attachments: [File('/ruta/a/archivo.pdf')],
+  );
+
+  await sendEmail(emailData);
+
+}
+
+Future<void> _cargarDatosIni() async {
   List<Map<String, String>> offices =  [];
   List<Map<String, String>> dentists = [];
   try {
     // offices
-    final res0 = await http.get(url0, headers: headersList);
+    final res0 = await HttpInterceptor.get('/api/offices', headers: {});
     
     if (res0.statusCode >= 200 && res0.statusCode < 300) {
       final jsonData0 = jsonDecode(res0.body);
@@ -293,8 +355,7 @@ Future<void> _cargarDatosIni() async {
     } 
 
     // Dentista Especialidad
-    var url2 = Uri.parse('$baseUrl/api/specialtyDentists');
-    final res2 = await http.get(url2, headers: headersList);
+    final res2 = await HttpInterceptor.get('/api/specialtyDentists', headers: {});
 
     if (res2.statusCode >= 200 && res2.statusCode < 300) {
       final jsonData2 = jsonDecode(res2.body);
@@ -335,29 +396,41 @@ Future<void> _cargarDatosIni() async {
   }
 }
 
-Future<void> _cargarDatos(int id) async {
+Future<void> _cargarDatos(int id, String cedula) async {
   ProgressDialog pr = ProgressDialog(context: context);
   pr.show(max: 600, msg: 'Procesando Consulta...');
 
-  var headersList = map;
-  final headers = {
-    'Authorization': 'Bearer $token',
-  };
-  headersList.addAll(headers);
-  var url = Uri.parse('$baseUrl/api/patients/$id');
+  String url = '/api/patients/id/$id';
+  if (cedula.isNotEmpty) {  
+    url = '/api/patients/document/$cedula';
+  }
 
   try {
-    final res = await http.get(url, headers: headersList);
+    final res = await HttpInterceptor.get(url, headers: {});
 
     if (res.statusCode >= 200 && res.statusCode < 300) {
-      Patient patient = Patient.fromJson(jsonDecode(res.body));
+      final jsonData = jsonDecode(res.body);
+      
+      // Handle both array and single object responses
+      Map<String, dynamic> patientData;
+      if (jsonData is List) {
+        if (jsonData.isEmpty) {
+          throw Exception('No se encontró el paciente');
+        }
+        patientData = jsonData.first;
+      } else {
+        patientData = jsonData;
+      }
+      Patient patient = Patient.fromJson(patientData);
       
       setState(() {
         // actualiza campos de la pantalla con el codigo existente
+        _idController.text = patient.id.toString();
         cedulaController.text = patient.documentId;
-        apellidosController.text = patient.lastName;
         nombresController.text = patient.name;
-        //observacionController.text = patient.occupation;
+        apellidosController.text = patient.lastName;
+        telefonoController.text = patient.phone;
+        correoController.text = patient.email; 
 
       });
     } 
@@ -474,40 +547,62 @@ Widget build(BuildContext context) {
                               ),
                   leading: ButtonBack(),
                   ), 
-    floatingActionButton: ExpandableFab(
-      fabMargin: 8,
-      icon: Icon(Icons.menu),
-      children: [
-        ActionButton(
-            icon: const Icon(Icons.save_as_outlined),
-            color: Colors.lightBlue,
-            onPressed: () async { 
-              setState(() {
-                _isGrabado = false;
-              });
-              if (_idController.text=='') {
-                ToastMSG.showInfo(context, 'enviando mensaje (${_idController.text})', 2);
-                sendWhatsAppWeb(phoneNumber: '+593959203165', message: 'Hola desde Flutter');
-                _guardarDatos();
-              } else {
-                ToastMSG.showInfo(context, 'enviando mensaje (${_idController.text})', 2);
-                sendWhatsAppWeb(phoneNumber: '+593959203165', message: 'Hola desde Flutter...');
-                _updateDatos();
-              }
-              
-              if (_idController.text!='0' && _isGrabado) {
-                ToastMSG.showInfo(context, 'Cita de Paciente Guardado Correctamente...', 2);
-              } 
-            }),
-        ActionButton(
-            icon: const Icon(Icons.delete_forever),
-            color: Colors.lightBlue,
-            onPressed: (){ _limpiarDet(); }),
-        ActionButton(
-            icon: const Icon(Icons.arrow_circle_left_outlined),
-            color: Colors.lightBlue,
-            onPressed: (){ Navigator.pop(context); })
-      ],
+    floatingActionButton: FloatingActionButton(
+      onPressed: () {
+        showModalBottomSheet(
+          context: context,
+          builder: (BuildContext context) {
+            return Container(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.save_as_outlined, color: Colors.lightBlue),
+                    title: const Text('Guardar'),
+                    onTap: () async {
+                      Navigator.pop(context);
+                      setState(() {
+                        _isGrabado = false;
+                      });
+                      if (_idController.text=='') {
+                        ToastMSG.showInfo(context, 'enviando mensaje (${_idController.text})', 2);
+                        sendWhatsAppWeb(phoneNumber: '+593959203165', message: 'Hola desde Flutter');
+                        _guardarDatos();
+                      } else {
+                        ToastMSG.showInfo(context, 'enviando mensaje (${_idController.text})', 2);
+                        sendWhatsAppWeb(phoneNumber: '+593959203165', message: 'Hola desde Flutter...');
+                        _updateDatos();
+                      }
+                      
+                      if (_idController.text!='0' && _isGrabado) {
+                        ToastMSG.showInfo(context, 'Cita de Paciente Guardado Correctamente...', 2);
+                      } 
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.delete_forever, color: Colors.lightBlue),
+                    title: const Text('Limpiar'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _limpiarDet();
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.arrow_circle_left_outlined, color: Colors.lightBlue),
+                    title: const Text('Volver'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.pop(context);
+                    },
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+      child: const Icon(Icons.menu),
     ),
     floatingActionButtonLocation: MediaQuery.of(context).size.width >1200 ? FloatingActionButtonLocation.centerDocked : FloatingActionButtonLocation.endDocked,
 
@@ -615,6 +710,21 @@ Widget build(BuildContext context) {
                     ),
                   ]
                 ),
+                ResponsiveGridRow(
+                  children: [
+                    ResponsiveGridCol(
+                        lg: 12,
+                        xl: 12,
+                        md: 12,
+                        sm: 12,
+                        xs: 12,
+                        child: Container(
+                          padding: const EdgeInsets.all(5.0),
+                          child: statusField(context),
+                        )
+                    ),
+                  ]
+                ),
               ],
             ),
           ),
@@ -649,7 +759,8 @@ Widget cedulaPacienteField(BuildContext context, TextEditingController cedulaCon
           onPressed: () async {
             FocusScope.of(context).unfocus(); // Cierra el teclado
             ToastMSG.showInfo(context,'Buscando Paciente...', 2);
-            _cargarDatos(_idController.text as int);
+            //_cargarDatos(_idController.text as int);
+            _cargarDatos(_idController.text as int, cedulaController.text);
           },
         ),
       ),
@@ -826,8 +937,8 @@ Widget dropdownofficesField({required BuildContext context, required String? val
           .toList(),
       onChanged: (value) {
         setState(() {
-          _valuedentists = value;
-          dentistsController.text = value ?? '';
+          _valueoffices = value;
+          officesController.text = value ?? '';
         });
       },
       validator: (value) {
@@ -941,6 +1052,78 @@ Widget reasonField(BuildContext context, TextEditingController reasonController)
       },
     ),
   );
+}
+
+Widget statusField(BuildContext context) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
+    child: DropdownButtonFormField<String>(
+      value: _selectedStatus,
+      decoration: InputDecoration(
+        labelText: 'Estado de la Cita',
+        labelStyle: TextStyle(color: Theme.of(context).hintColor),
+        prefixIcon: const Icon(Icons.info_outline),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12.0),
+        ),
+      ),
+      items: _statusOptions.map((status) {
+        return DropdownMenuItem<String>(
+          value: status['value'],
+          child: Row(
+            children: [
+              Icon(
+                _getStatusIcon(status['value']!),
+                color: _getStatusColor(status['value']!),
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(status['label']!),
+            ],
+          ),
+        );
+      }).toList(),
+      onChanged: (String? newValue) {
+        if (newValue != null) {
+          setState(() {
+            _selectedStatus = newValue;
+          });
+        }
+      },
+      validator: (value) {
+        if (value == null || value.isEmpty) {
+          return 'Seleccione un estado';
+        }
+        return null;
+      },
+    ),
+  );
+}
+
+IconData _getStatusIcon(String status) {
+  switch (status) {
+    case 'pending':
+      return Icons.schedule;
+    case 'completed':
+      return Icons.check_circle;
+    case 'cancelled':
+      return Icons.cancel;
+    default:
+      return Icons.help;
+  }
+}
+
+Color _getStatusColor(String status) {
+  switch (status) {
+    case 'pending':
+      return Colors.orange;
+    case 'completed':
+      return Colors.green;
+    case 'cancelled':
+      return Colors.red;
+    default:
+      return Colors.grey;
+  }
 }
 
 

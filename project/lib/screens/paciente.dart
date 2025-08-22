@@ -5,13 +5,12 @@ import 'package:odontologo/object/create_patient.dart';
 import 'package:odontologo/object/patient.dart';
 import 'package:odontologo/screens/button_back.dart';
 import 'package:odontologo/services/mayusculas.dart';
-import 'package:odontologo/variables_globales.dart';
 import 'package:odontologo/widgets/toast_msg.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:responsive_grid/responsive_grid.dart';
-import 'package:http/http.dart' as http;
-import 'package:expandable_fab_lite/expandable_fab_lite.dart';
+import 'package:odontologo/services/http_interceptor.dart';
+
 import 'package:sn_progress_dialog/progress_dialog.dart';
 
 class Paciente extends StatefulWidget {
@@ -56,15 +55,7 @@ final List<Map<String, String>> _genero = [
 
 final List<Map<String, String>> _tipoDoc =  [];
 
-final List<Map<String, String>> _estadoCivil =  [
-  {'codigo': '0', 'descripcion': '-- Sin Selección --'},
-  {'codigo': '1', 'descripcion': 'No Se Conoce'},
-  {'codigo': '2', 'descripcion': 'Soltero(a)'},
-  {'codigo': '3', 'descripcion': 'Casado(a)'},
-  {'codigo': '4', 'descripcion': 'Viudo(a)'},
-  {'codigo': '5', 'descripcion': 'Divorciado(a)'},
-  {'codigo': '6', 'descripcion': 'Unión Libre'},
-];
+final List<Map<String, String>> _estadoCivil =  [];
 
 final List<Map<String, String>> _tipoSangre =  [];
 
@@ -188,16 +179,8 @@ void _guardarDatos() async {
       occupation: ocupacionReferenciaController.text
     );
 
-    var headersList = map;
-    final headers = {
-      'Authorization': 'Bearer $token',
-    };
-    headersList.addAll(headers);
-
-    var url = Uri.parse('$baseUrl/api/patients');
-
     try {
-      final res = await http.post(url, headers: headersList, body: jsonEncode(objPatient));
+      final res = await HttpInterceptor.post('/api/patients', headers: {}, body: jsonEncode(objPatient));
       
       if (res.statusCode >= 200 && res.statusCode < 300) {
         Patient patient = Patient.fromJson(jsonDecode(res.body));
@@ -225,9 +208,6 @@ void _guardarDatos() async {
   } else {
     // ❌ Formulario inválido, mostrar error
     ToastMSG.showError(context, 'Por favor, complete el formulario', 2);
-/*     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Por favor, complete el formulario')),
-    ); */
   }
 }
 
@@ -252,16 +232,8 @@ void _updateDatos() async {
       occupation: ocupacionReferenciaController.text
     );
 
-    var headersList = map;
-    final headers = {
-      'Authorization': 'Bearer $token',
-    };
-    headersList.addAll(headers);
-
-    var url = Uri.parse('$baseUrl/api/patients/${_idController.text}');
-
     try {
-      final res = await http.put(url, headers: headersList, body: jsonEncode(objPatient));
+      final res = await HttpInterceptor.put('/api/patients/${_idController.text}', headers: {}, body: jsonEncode(objPatient));
       
       if (res.statusCode >= 200 && res.statusCode < 300) {
         Patient patient = Patient.fromJson(jsonDecode(res.body));
@@ -289,28 +261,16 @@ void _updateDatos() async {
   } else {
     // ❌ Formulario inválido, mostrar error
     ToastMSG.showError(context, 'Por favor, complete el formulario', 2);
-/*     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Por favor, complete el formulario')),
-    ); */
   }
 }
 
 Future<void> _cargarDatosIni() async {
-  //ProgressDialog pr2 = ProgressDialog(context: context);
-  //pr2.show(max: 600, msg: 'Procesando Consulta 2...');
-
-  var headersList = map;
-  final headers = {
-    'Authorization': 'Bearer $token',
-  };
-  headersList.addAll(headers);
-  var url0 = Uri.parse('$baseUrl/api/documentType');
-
   List<Map<String, String>> tipoDoc2 =  [];
   List<Map<String, String>> tipoSangre2 = [];
+  List<Map<String, String>> estadoCivil3 = [];
   try {
     // tipo de documentos
-    final res0 = await http.get(url0, headers: headersList);
+    final res0 = await HttpInterceptor.get('/api/documentType', headers: {});
 
     if (res0.statusCode >= 200 && res0.statusCode < 300) {
       final jsonData0 = jsonDecode(res0.body);
@@ -325,8 +285,7 @@ Future<void> _cargarDatosIni() async {
     } 
 
     // tipo sangre
-    var url2 = Uri.parse('$baseUrl/api/bloodType');
-    final res2 = await http.get(url2, headers: headersList);
+    final res2 = await HttpInterceptor.get('/api/bloodType', headers: {});
 
     if (res2.statusCode >= 200 && res2.statusCode < 300) {
       final jsonData2 = jsonDecode(res2.body);
@@ -340,14 +299,28 @@ Future<void> _cargarDatosIni() async {
       });
     }   
 
+    // estado civil
+    final res3 = await HttpInterceptor.get('/api/maritalStatus', headers: {});
+
+    if (res3.statusCode >= 200 && res3.statusCode < 300) {
+      final jsonData3 = jsonDecode(res3.body);
+
+      estadoCivil3.add({'codigo': '0', 'descripcion': '-- Sin Selección --'});
+      jsonData3.toList().forEach((element2) {
+        estadoCivil3.add({
+          'codigo': element2['id'],
+          'descripcion': element2['name']
+        });
+      });
+    }  
+
     setState(() {
       _tipoDoc.addAll(tipoDoc2);
       _tipoSangre.addAll(tipoSangre2);
+      _estadoCivil.addAll(estadoCivil3);
     });
 
-    //pr2.close();
   } on Exception catch (e) {
-    //pr2.close();
     AwesomeDialog(
       // ignore: use_build_context_synchronously
       context: context,
@@ -365,19 +338,24 @@ Future<void> _cargarDatos(int id) async {
   ProgressDialog pr = ProgressDialog(context: context);
   pr.show(max: 600, msg: 'Procesando Consulta...');
 
-  var headersList = map;
-  final headers = {
-    'Authorization': 'Bearer $token',
-  };
-  headersList.addAll(headers);
-  var url = Uri.parse('$baseUrl/api/patients/$id');
-
   try {
-    final res = await http.get(url, headers: headersList);
-
+    final res = await HttpInterceptor.get('/api/patients/id/$id', headers: {});
+    
     if (res.statusCode >= 200 && res.statusCode < 300) {
-      Patient patient = Patient.fromJson(jsonDecode(res.body));
+      final jsonData = jsonDecode(res.body);
       
+      // Handle both array and single object responses
+      Map<String, dynamic> patientData;
+      if (jsonData is List) {
+        if (jsonData.isEmpty) {
+          throw Exception('No se encontró el paciente');
+        }
+        patientData = jsonData.first;
+      } else {
+        patientData = jsonData;
+      }
+      
+      Patient patient = Patient.fromJson(patientData);
       setState(() {
         // actualiza campos de la pantalla con el codigo existente
         tipoDocController.text = patient.documentTypeId;
@@ -404,16 +382,17 @@ Future<void> _cargarDatos(int id) async {
     pr.close();
   } on Exception catch (e) {
     pr.close();
-    AwesomeDialog(
-      // ignore: use_build_context_synchronously
-      context: context,
-      animType: AnimType.bottomSlide,
-      dialogType: DialogType.error,
-      title: 'Odontológico',
-      desc: e.toString(),
-      btnOkText: 'Cerrar',
-      btnOkOnPress: () {},
-    ).show();
+    if (mounted) {
+      AwesomeDialog(
+        context: context,
+        animType: AnimType.bottomSlide,
+        dialogType: DialogType.error,
+        title: 'Odontológico',
+        desc: e.toString(),
+        btnOkText: 'Cerrar',
+        btnOkOnPress: () {},
+      ).show();
+    }
   }
 }
 
@@ -445,36 +424,58 @@ Widget build(BuildContext context) {
                   leading: ButtonBack(),
                   ), 
     
-    floatingActionButton: ExpandableFab(
-      fabMargin: 8,
-      icon: Icon(Icons.menu),
-      children: [
-        ActionButton(
-            icon: const Icon(Icons.save_as_outlined),
-            color: Colors.lightBlue,
-            onPressed: () async { 
-              setState(() {
-                _isGrabado = false;
-              });
-              if (_idController.text=='0') {
-                _guardarDatos();
-              } else {
-                _updateDatos();
-              }
-              
-              if (_idController.text!='0' && _isGrabado) {
-                ToastMSG.showInfo(context, 'Paciente Guardado Correctamente...Código Interno ${_idController.text}', 2);
-              } 
-            }),
-        ActionButton(
-            icon: const Icon(Icons.clear_all_sharp),
-            color: Colors.lightBlue,
-            onPressed: (){ ToastMSG.showInfo(context, 'Impresión En Construcción', 2); }),
-        ActionButton(
-            icon: const Icon(Icons.arrow_circle_left_outlined),
-            color: Colors.lightBlue,
-            onPressed: (){ Navigator.pop(context); })
-      ],
+    floatingActionButton: FloatingActionButton(
+      onPressed: () {
+        showModalBottomSheet(
+          context: context,
+          builder: (BuildContext context) {
+            return Container(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.save_as_outlined, color: Colors.lightBlue),
+                    title: const Text('Guardar'),
+                    onTap: () async {
+                      Navigator.pop(context);
+                      setState(() {
+                        _isGrabado = false;
+                      });
+                      if (_idController.text=='0') {
+                        _guardarDatos();
+                      } else {
+                        _updateDatos();
+                      }
+                      
+                      if (_idController.text!='0' && _isGrabado) {
+                        ToastMSG.showInfo(context, 'Paciente Guardado Correctamente...Código Interno ${_idController.text}', 2);
+                      } 
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.clear_all_sharp, color: Colors.lightBlue),
+                    title: const Text('Limpiar'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      ToastMSG.showInfo(context, 'Limpieza En Construcción', 2);
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.arrow_circle_left_outlined, color: Colors.lightBlue),
+                    title: const Text('Volver'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.pop(context);
+                    },
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+      child: const Icon(Icons.menu),
     ),
     floatingActionButtonLocation: MediaQuery.of(context).size.width >1200 ? FloatingActionButtonLocation.centerDocked : FloatingActionButtonLocation.endDocked,
 
