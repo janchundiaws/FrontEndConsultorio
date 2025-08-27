@@ -85,6 +85,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       'Suministros': AppRoutes.suministros,
       'Transacciones Ingreso': AppRoutes.transaccionesIngreso,
       'Transacciones Egreso': AppRoutes.transaccionesEgreso,
+      'Reporte Stock Suministros': AppRoutes.reporteStockSuministros,
       'Tratamientos': AppRoutes.tratamientos,
       'Facturación': AppRoutes.facturacion,
       'Inventario': AppRoutes.inventario,

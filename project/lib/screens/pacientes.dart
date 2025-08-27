@@ -679,7 +679,20 @@ class _PacientesState extends State<Pacientes> {
         };
       }
     } catch (e) {
-      print('Error obteniendo datos del paciente: $e');
+      //print('Error obteniendo datos del paciente: $e');
+      if (mounted) {
+        AwesomeDialog(
+          context: context,
+          animType: AnimType.bottomSlide,
+          dialogType: DialogType.error,
+          title: 'Error',
+          desc: 'Error al cargar los datos del paciente: $e',
+          btnOkText: 'Cerrar',
+          btnOkOnPress: () {
+            Navigator.pop(context);
+          },
+        ).show();
+      }
     }
     return null;
   }

@@ -26,6 +26,7 @@ class AppRoutes {
   static const String transaccionIngreso = '/transaccion_ingreso';
   static const String transaccionesEgreso = '/transacciones_egreso';
   static const String transaccionEgreso = '/transaccion_egreso';
+  static const String reporteStockSuministros = '/reporte_stock_suministros';
 
   static Map<String, WidgetBuilder> routes = {
     initialRoute: (context) => const AuthWrapper(),
@@ -49,6 +50,7 @@ class AppRoutes {
     transaccionIngreso: (context) => const TransaccionIngreso(),
     transaccionesEgreso: (context) => const TransaccionesEgreso(),
     transaccionEgreso: (context) => const TransaccionEgreso(),
+    reporteStockSuministros: (context) => const ReporteStockSuministros(),
   };
 
   // Middleware para verificar autenticación

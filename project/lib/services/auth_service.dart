@@ -46,7 +46,8 @@ class AuthService {
         return true;
       }
     } catch (e) {
-      print('Error refreshing token: $e');
+      //print('Error refreshing token: $e');
+      return false;
     }
     
     return false;

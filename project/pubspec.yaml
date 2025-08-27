@@ -91,6 +91,9 @@ flutter:
     - assets/images/icons8_64.png
     - assets/images/Odontologia04.png
     - assets/images/iconsEditFile24.png
+    - assets/images/iconsEdit24.png
+    - assets/images/eliminar_32x32.png
+    - assets/images/
     - assets/json/
   #   - images/a_dot_ham.jpeg
 

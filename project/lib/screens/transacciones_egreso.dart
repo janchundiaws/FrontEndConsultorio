@@ -24,7 +24,7 @@ class TransaccionesEgreso extends StatefulWidget {
 
 class _TransaccionesEgresoState extends State<TransaccionesEgreso> {
   final _formKey = GlobalKey<FormState>();
-  late final PlutoGridStateManager stateManager;
+  PlutoGridStateManager? stateManager;
   final List<OutgoingTransaction> _transactions = [];
   List<PlutoColumn> columns = [];
   final _buscarTransaccionController = TextEditingController();
@@ -227,7 +227,7 @@ class _TransaccionesEgresoState extends State<TransaccionesEgreso> {
                                               mode: PlutoGridMode.normal,
                                               onLoaded: (PlutoGridOnLoadedEvent event) {
                                                 stateManager = event.stateManager;
-                                                stateManager.setKeepFocus(false);
+                                                stateManager?.setKeepFocus(false);
                                                 event.stateManager.setShowColumnFilter(true);
                                                 event.stateManager.setShowColumnFooter(false);
                                               },
@@ -302,10 +302,10 @@ class _TransaccionesEgresoState extends State<TransaccionesEgreso> {
         _isLoading = false;
       });
       
-      if (stateManager.rows.isNotEmpty) {
-        stateManager.removeRows(stateManager.rows);
+      if (stateManager?.rows.isNotEmpty == true) {
+        stateManager?.removeRows(stateManager!.rows);
       }
-      stateManager.appendRows(rowsLista(_transactions));
+      stateManager?.appendRows(rowsLista(_transactions));
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -344,10 +344,10 @@ class _TransaccionesEgresoState extends State<TransaccionesEgreso> {
         _isLoading = false;
       });
       
-      if (stateManager.rows.isNotEmpty) {
-        stateManager.removeRows(stateManager.rows);
+      if (stateManager?.rows.isNotEmpty == true) {
+        stateManager?.removeRows(stateManager!.rows);
       }
-      stateManager.appendRows(rowsLista(_transactions));
+      stateManager?.appendRows(rowsLista(_transactions));
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -599,7 +599,20 @@ class _TransaccionesEgresoState extends State<TransaccionesEgreso> {
   }
 
   Future<void> _verTransaccion() async {
-    final selectedRows = stateManager.rows.where((row) {
+    if (stateManager == null) {
+      AwesomeDialog(
+        context: context,
+        animType: AnimType.bottomSlide,
+        dialogType: DialogType.warning,
+        title: 'Tabla no inicializada',
+        desc: 'Por favor espere a que la tabla se cargue completamente',
+        btnOkText: 'Entendido',
+        btnOkOnPress: () {},
+      ).show();
+      return;
+    }
+    
+    final selectedRows = stateManager!.rows.where((row) {
       final isSelected = row.cells['Seleccion']?.value;
       return isSelected == true || isSelected == 'true';
     }).toList();
@@ -646,7 +659,20 @@ class _TransaccionesEgresoState extends State<TransaccionesEgreso> {
   }
 
   Future<void> _eliminarTransaccion() async {
-    final selectedRows = stateManager.rows.where((row) {
+    if (stateManager == null) {
+      AwesomeDialog(
+        context: context,
+        animType: AnimType.bottomSlide,
+        dialogType: DialogType.warning,
+        title: 'Tabla no inicializada',
+        desc: 'Por favor espere a que la tabla se cargue completamente',
+        btnOkText: 'Entendido',
+        btnOkOnPress: () {},
+      ).show();
+      return;
+    }
+    
+    final selectedRows = stateManager!.rows.where((row) {
       final isSelected = row.cells['Seleccion']?.value;
       return isSelected == true || isSelected == 'true';
     }).toList();

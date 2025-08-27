@@ -9,4 +9,6 @@ export 'package:odontologo/services/mayusculas.dart';
 export 'package:odontologo/services/supplier_service.dart';
 export 'package:odontologo/services/master_supply_service.dart';
 export 'package:odontologo/services/incoming_transaction_service.dart';
-export 'package:odontologo/services/outgoing_transaction_service.dart'; 
+export 'package:odontologo/services/outgoing_transaction_service.dart';
+export 'package:odontologo/services/inventory_stock_service.dart';
+export 'package:odontologo/services/dentist_service.dart'; 

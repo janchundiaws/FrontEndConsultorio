@@ -32,7 +32,8 @@ class CacheService {
       await _cleanupCache();
       
     } catch (e) {
-      print('Error saving to cache: $e');
+      //print('Error saving to cache: $e');
+      return;
     }
   }
 
@@ -68,7 +69,8 @@ class CacheService {
       }
       
     } catch (e) {
-      print('Error getting from cache: $e');
+      //print('Error getting from cache: $e');
+      return null;
     }
     
     return null;
@@ -114,7 +116,8 @@ class CacheService {
       await prefs.remove(cacheKey);
       await prefs.remove(metadataKey);
     } catch (e) {
-      print('Error removing from cache: $e');
+      //print('Error removing from cache: $e');
+      return;
     }
   }
 
@@ -130,7 +133,8 @@ class CacheService {
         }
       }
     } catch (e) {
-      print('Error clearing cache: $e');
+      //print('Error clearing cache: $e');
+      return;
     }
   }
 
@@ -199,7 +203,8 @@ class CacheService {
       // Eliminar elementos expirados
       await _removeExpiredItems();
     } catch (e) {
-      print('Error cleaning up cache: $e');
+      //print('Error cleaning up cache: $e');
+      return;
     }
   }
 
@@ -240,7 +245,8 @@ class CacheService {
         await prefs.remove(item['metadataKey']);
       }
     } catch (e) {
-      print('Error removing oldest items: $e');
+      //print('Error removing oldest items: $e');
+      return;
     }
   }
 
@@ -270,7 +276,8 @@ class CacheService {
         }
       }
     } catch (e) {
-      print('Error removing expired items: $e');
+      //print('Error removing expired items: $e');
+      return;
     }
   }
 
@@ -332,7 +339,8 @@ class CacheService {
         }
       }
     } catch (e) {
-      print('Error invalidating cache by pattern: $e');
+      //print('Error invalidating cache by pattern: $e');
+      return;
     }
   }
 } 

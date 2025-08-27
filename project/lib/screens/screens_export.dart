@@ -16,4 +16,5 @@ export 'package:odontologo/screens/transacciones_ingreso.dart';
 export 'package:odontologo/screens/transaccion_ingreso.dart';
 export 'package:odontologo/screens/transacciones_egreso.dart';
 export 'package:odontologo/screens/transaccion_egreso.dart';
+export 'package:odontologo/screens/reporte_stock_suministros.dart';
 //export 'package:odontologo/screens/citas_pages.dart';

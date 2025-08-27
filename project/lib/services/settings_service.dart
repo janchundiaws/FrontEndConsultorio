@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:odontologo/object/transaction_type.dart';
+import 'package:odontologo/services/dentist_service.dart';
 
 class SettingsService {
   static const String _settingsPath = 'assets/json/settings.json';
@@ -10,6 +11,7 @@ class SettingsService {
   static List<TransactionType>? _cachedOutgoingTransactionTypes;
   static List<StatusOption>? _cachedIncomingStatusOptions;
   static List<StatusOption>? _cachedOutgoingStatusOptions;
+  static List<Map<String, String>>? _cachedDentists;
 
   // Cargar configuración completa
   static Future<Map<String, dynamic>> loadSettings() async {
@@ -23,7 +25,7 @@ class SettingsService {
       _cachedSettings = settings;
       return settings;
     } catch (e) {
-      print('Error cargando configuración: $e');
+      //print('Error cargando configuración: $e');
       // Retornar configuración por defecto si falla
       return _getDefaultSettings();
     }
@@ -45,7 +47,7 @@ class SettingsService {
       
       return _cachedIncomingTransactionTypes!;
     } catch (e) {
-      print('Error cargando tipos de transacción de ingreso: $e');
+      //print('Error cargando tipos de transacción de ingreso: $e');
       return _getDefaultIncomingTransactionTypes();
     }
   }
@@ -66,8 +68,41 @@ class SettingsService {
       
       return _cachedOutgoingTransactionTypes!;
     } catch (e) {
-      print('Error cargando tipos de transacción de salida: $e');
+      //print('Error cargando tipos de transacción de salida: $e');
       return _getDefaultOutgoingTransactionTypes();
+    }
+  }
+
+  // Obtener doctores desde la API
+  static Future<List<Map<String, String>>> getDentists() async {
+    if (_cachedDentists != null) {
+      return _cachedDentists!;
+    }
+    
+    try {
+      // Intentar obtener dentistas desde la API
+      final dentists = await DentistService.getDentistsForDropdown();
+      
+      // Cachear el resultado
+      _cachedDentists = dentists;
+      
+      return dentists;
+    } catch (e) {
+      //print('Error cargando doctores desde API: $e');
+      // En caso de error, intentar cargar desde archivo JSON local
+      try {
+        final settings = await loadSettings();
+        final List<dynamic> dentistsJson = settings['dentists'] ?? [];
+        
+        _cachedDentists = dentistsJson
+            .map((json) => Map<String, String>.from(json))
+            .toList();
+
+        return _cachedDentists!;
+      } catch (e2) {
+        //print('Error cargando doctores desde archivo local: $e2');
+        return _getDefaultDentists();
+      }
     }
   }
 
@@ -87,7 +122,7 @@ class SettingsService {
       
       return _cachedIncomingStatusOptions!;
     } catch (e) {
-      print('Error cargando opciones de estado de ingreso: $e');
+      //print('Error cargando opciones de estado de ingreso: $e');
       return _getDefaultIncomingStatusOptions();
     }
   }
@@ -108,7 +143,7 @@ class SettingsService {
       
       return _cachedOutgoingStatusOptions!;
     } catch (e) {
-      print('Error cargando opciones de estado de salida: $e');
+      //print('Error cargando opciones de estado de salida: $e');
       return _getDefaultOutgoingStatusOptions();
     }
   }
@@ -119,7 +154,7 @@ class SettingsService {
       final settings = await loadSettings();
       return settings['app_settings'] ?? {};
     } catch (e) {
-      print('Error cargando configuración de la app: $e');
+      //print('Error cargando configuración de la app: $e');
       return _getDefaultAppSettings();
     }
   }
@@ -131,6 +166,7 @@ class SettingsService {
     _cachedOutgoingTransactionTypes = null;
     _cachedIncomingStatusOptions = null;
     _cachedOutgoingStatusOptions = null;
+    _cachedDentists = null;
   }
 
   // Configuraciones por defecto
@@ -262,4 +298,12 @@ class SettingsService {
       },
     };
   }
+
+  // Obtener doctores por defecto
+  static List<Map<String, String>> _getDefaultDentists() {
+    return [
+      {'codigo': '0', 'descripcion': 'Sin selección'},
+    ];
+  }
+
 } 

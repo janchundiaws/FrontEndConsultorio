@@ -1,5 +1,5 @@
 /* Autor: Pio enrique Olvera Briones
-   Fecha: 07/08/2025
+   Fecha: 25/08/2025
    Descripción: pantalla para crear/editar transacciones de ingreso de insumos
 */
 
@@ -98,9 +98,9 @@ class _TransaccionIngresoState extends State<TransaccionIngreso> {
       
       await _loadInitialData();
       //print('✅ Inicialización completada exitosamente');
-    } catch (e, stackTrace) {
+    } catch (e) { //catch (e, stackTrace) {
       //print('❌ Error durante inicialización: $e');
-      print('📚 Stack trace: $stackTrace');
+      //print('📚  Stack trace: $stackTrace'); 
       
       //print('🔄 Intentando cargar datos de fallback...');
       _loadFallbackData();
@@ -186,7 +186,7 @@ class _TransaccionIngresoState extends State<TransaccionIngreso> {
       //print('✅ Datos de fallback cargados');
       
       // Debug: verificar datos de fallback
-      _debugData();
+      //_debugData();
     });
   }
 
@@ -202,7 +202,7 @@ class _TransaccionIngresoState extends State<TransaccionIngreso> {
       //print('✅ Datos de transacción cargados exitosamente');
       
       //print('🎉 Carga inicial completada');
-    } catch (e, stackTrace) {
+    } catch (e) { //catch (e, stackTrace) {
       //print('❌ Error en _loadInitialData: $e');
       //print('📚 Stack trace: $stackTrace');
       
@@ -257,12 +257,12 @@ class _TransaccionIngresoState extends State<TransaccionIngreso> {
         //print('✅ Validación completada');
         
         // Debug: verificar datos cargados
-        _debugData();
+        //_debugData();
       });
 
-    } catch (e, stackTrace) {
+    } catch (e) { //catch (e, stackTrace) {
       //print('❌ Error en _loadDropdownData: $e');
-      print('📚 Stack trace: $stackTrace');
+      //print('📚 Stack trace: $stackTrace');
       
       //print('🔄 Intentando cargar datos de fallback...');
       _loadFallbackData();
@@ -297,7 +297,7 @@ class _TransaccionIngresoState extends State<TransaccionIngreso> {
         // Nueva transacción - generar número automático
         _transactionNumberController.text = IncomingTransactionService.generateTransactionNumber();
         _transactionDateController.text = DateFormat('dd-MM-yyyy').format(DateTime.now().toLocal());
-        _addDetail(); // Agregar primer detalle
+        //_addDetail(); // Agregar primer detalle
         //print('✅ Nueva transacción inicializada');
       }
     } catch (e, stackTrace) {
@@ -386,39 +386,32 @@ class _TransaccionIngresoState extends State<TransaccionIngreso> {
               //print('Detalle - UnitCost: ${detail.unitCost} (tipo: ${detail.unitCost.runtimeType})');
               //print('Detalle - Subtotal: ${detail.subtotal} (tipo: ${detail.subtotal.runtimeType})');
               
-              final detailForm = IncomingDetailForm();
+              final detailForm = IncomingDetailForm.fromExisting(
+                detailId: detail.detailId ?? 0,
+                supplyId: detail.supplyId,
+                quantity: _safeParseDouble(detail.quantity),
+                unitCost: _safeParseDouble(detail.unitCost),
+                subtotal: _safeParseDouble(detail.subtotal),
+                batchNumber: detail.batchNumber,
+                expirationDate: detail.expirationDate,
+                warehouseLocation: detail.warehouseLocation,
+                notes: detail.notes,
+              );
               
               // Verificar que el supplyId existe en la lista de suministros
               final supplyExists = _supplies.any((supply) => supply.supplyId == detail.supplyId);
-              if (supplyExists) {
-                detailForm.supplyId = detail.supplyId;
-              } else {
+              if (!supplyExists) {
                 //print('Advertencia: supplyId ${detail.supplyId} no encontrado en la lista de suministros');
                 detailForm.supplyId = 0; // Reset a 0 si no existe
               }
               
-              // Convertir valores numéricos de forma segura
-              final quantity = _safeParseDouble(detail.quantity);
-              final unitCost = _safeParseDouble(detail.unitCost);
-              final subtotal = _safeParseDouble(detail.subtotal);
-              
-              //print('Detalle convertido - Quantity: $quantity, UnitCost: $unitCost, Subtotal: $subtotal');
-              
-              detailForm.quantity = quantity;
-              detailForm.unitCost = unitCost;
-              detailForm.subtotal = subtotal;
-              
-              detailForm.quantityController.text = quantity.toStringAsFixed(2);
-              detailForm.unitCostController.text = unitCost.toStringAsFixed(2);
-              detailForm.subtotalController.text = subtotal.toStringAsFixed(2);
-              detailForm.batchNumberController.text = detail.batchNumber;
-              detailForm.expirationDateController.text = detail.expirationDate;
-              detailForm.warehouseLocationController.text = detail.warehouseLocation;
-              detailForm.notesController.text = detail.notes;
-              _details.add(detailForm);
-            }
-            
-            _isLoading = false;
+                          _details.add(detailForm);
+          }
+          
+          // Sincronizar con grid después de cargar detalles
+          _syncDetailsWithGrid();
+          
+          _isLoading = false;
           } catch (e) {
             //print('Error durante setState en _loadTransaction: $e');
             //print('Stack trace: ${StackTrace.current}');
@@ -470,7 +463,7 @@ class _TransaccionIngresoState extends State<TransaccionIngreso> {
   }
 
   // Método de debug para verificar datos
-  void _debugData() {
+/*   void _debugData() {
     print('🔍 === DEBUG DATA ===');
     print('📊 Proveedores: ${_suppliers.length}');
     print('📦 Suministros: ${_supplies.length}');
@@ -481,7 +474,7 @@ class _TransaccionIngresoState extends State<TransaccionIngreso> {
     print('🔄 Cargando: $_isLoading');
     print('📋 Cargando dropdowns: $_isLoadingDropdowns');
     print('===================');
-  }
+  } */
 
   @override
   Widget build(BuildContext context) {
@@ -579,9 +572,9 @@ class _TransaccionIngresoState extends State<TransaccionIngreso> {
                               // Sección de cabecera
                               _buildHeaderSection(),
                               // Sección de detalles grid
-                              _buildDetailsSection2(),
+                              _buildDetailsSection(),
                               // Sección de detalles
-                              _buildDetailsSection(constraints.maxWidth),
+                              //_buildDetailsSection(constraints.maxWidth),
                             ],
                           ),
                         ),
@@ -591,9 +584,9 @@ class _TransaccionIngresoState extends State<TransaccionIngreso> {
                 },
               ),
       );
-    } catch (e, stackTrace) {
+    } catch (e) { //catch (e, stackTrace) {
       //print('❌ Error en build: $e');
-      print('📚 Stack trace: $stackTrace');
+      //print('📚 Stack trace: $stackTrace');
       
       // UI de fallback en caso de error
       return Scaffold(
@@ -607,10 +600,7 @@ class _TransaccionIngresoState extends State<TransaccionIngreso> {
             children: [
               const Icon(Icons.error_outline, size: 64, color: Colors.red),
               const SizedBox(height: 16),
-              const Text(
-                'Error al renderizar la pantalla',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
+              const Text('Error al renderizar la pantalla', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),),
               const SizedBox(height: 8),
               Text('Error: $e'),
               const SizedBox(height: 16),
@@ -845,7 +835,7 @@ class _TransaccionIngresoState extends State<TransaccionIngreso> {
     );
   }
 
-  Widget _buildDetailsSection2() {
+  Widget _buildDetailsSection() {
     final isSmallScreen = MediaQuery.of(context).size.width < 600;
     return  Container(
               padding: const EdgeInsets.all(5),
@@ -909,59 +899,7 @@ class _TransaccionIngresoState extends State<TransaccionIngreso> {
                                   event.stateManager.setShowColumnFilter(true);
                                   event.stateManager.setShowColumnFooter(false);
                                 },
-                                onRowDoubleTap:(PlutoGridOnRowDoubleTapEvent event) async {
-/*                                 if(event.cell.column.field=="id"){
-                                    if (event.row.cells['fechaPrd']?.value!=DateTime.now()) {
-                                     ToastSPA.showInfo(context, 'No es Posible Eliminar Registro', 2);
-                                    } else {
-                                      setState(() {_eliminadoReg = false;});
-                                      await _eliminarReg(event.row.cells['id']?.value);
-                                    }
-                                }else if(event.cell.column.field=="id2"){
-                                  if (event.row.cells['horaFin']?.value == '00:00:00') {
-                                    Toast.showInfo(context, 'Cargando Datos de Tiempos de Cocción', 2);
-                                    var tmpFechaPrd = _fechaPrdController.text;
-                                    var tmpCiclo = _cicloController.text;
-                                    _limpiarVar();
-                                    setState(() {
-                                      _estadoNuevo = false;
-                                      _fechaPrdController.text = tmpFechaPrd;
-                                      _cicloController.text = tmpCiclo;
-                                      _idDocumentoController.text = event.row.cells['id2']!.value.toString();
-                                      _fechaPrdController.text = event.row.cells['fechaPrd']?.value;
-                                      _cicloController.text = event.row.cells['ciclo']?.value;
-                                      _hornoController.text = event.row.cells['horno']?.value;
-                                      _valueHorno = event.row.cells['horno']?.value;
-                                      _horaInicioController.text = event.row.cells['horaInicio']?.value;
-                                      _horaFinController.text = event.row.cells['horaFin']?.value;
-                                      _horaCalculoController.text = event.row.cells['horaCalculo']?.value;
-                                      _temperaturaCorteCoccionController.text = event.row.cells['temperaturaCorteCoccion']?.value;
-                                      _temperaturaSondaController.text = event.row.cells['temperaturaSondaIni1']?.value;
-                                      _temperaturaSondaController2.text = event.row.cells['temperaturaSondaIni2']?.value;
-                                      _temperaturaSondaController3.text = event.row.cells['temperaturaSondaIni3']?.value;
-                                      _temperaturaSondaController4.text = event.row.cells['temperaturaSondaIni4']?.value;
-                                      _temperaturaSondaController5.text = event.row.cells['temperaturaSondaFin1']?.value;
-                                      _temperaturaSondaController6.text = event.row.cells['temperaturaSondaFin2']?.value;
-                                      _temperaturaSondaController7.text = event.row.cells['temperaturaSondaFin3']?.value;
-                                      _temperaturaSondaController8.text = event.row.cells['temperaturaSondaFin4']?.value;
-                                      _temperaturaAmbienteController.text = event.row.cells['temperaturaAmbiente']?.value;
-                                      _temperaturaAmbienteController2.text = event.row.cells['temperaturaAmbiente2']?.value;
-                                      _temperaturaAmbienteController3.text = event.row.cells['temperaturaAmbiente3']?.value;
-                                    });
-                                    showModalBottomSheet(context: context,
-                                      isDismissible: false,
-                                      shape: const RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                                      ),
-                                      builder: (BuildContext context) {
-                                        return _buildStatefulBuilderAddDet(true);
-                                      }
-                                    );
-                                  } else {
-                                    ToastSPA.showInfo(context, 'No es Posible Editar. Tiempos de Cocción Finalizado...', 2);
-                                  }
-                                }
- */                              },
+                                onRowDoubleTap:(PlutoGridOnRowDoubleTapEvent event) async {},
                               configuration: PlutoGridConfiguration(
                                 style: const PlutoGridStyleConfig(
                                   enableColumnBorderHorizontal: true,
@@ -986,10 +924,9 @@ class _TransaccionIngresoState extends State<TransaccionIngreso> {
           );
 
   }
-
   
 
-  Widget _buildDetailsSection(double maxWidth) {
+/*   Widget _buildDetailsSection(double maxWidth) {
     return Container(
       padding: const EdgeInsets.all(3),
       margin: const EdgeInsets.all(5),
@@ -1058,7 +995,7 @@ class _TransaccionIngresoState extends State<TransaccionIngreso> {
       ),
     );
   }
-
+ 
   Widget _buildDetailCard(int index) {
     final detail = _details[index];
     
@@ -1167,7 +1104,7 @@ class _TransaccionIngresoState extends State<TransaccionIngreso> {
       ),
     );
   }
-
+*/
   // ==================== CAMPOS DE CABECERA ====================
 
   TextFormField _buildTransactionNumberField() {
@@ -1272,7 +1209,23 @@ class _TransaccionIngresoState extends State<TransaccionIngreso> {
           _selectedSupplier = newValue;
           // Limpiar detalles cuando cambia el proveedor
           if (newValue != null) {
-            _clearDetails();
+            if (_details.isNotEmpty) {
+              AwesomeDialog(
+                context: context, 
+                animType: AnimType.bottomSlide, 
+                dialogType: DialogType.warning, 
+                title: 'Pregunta', 
+                desc: '¿Desea limpiar los detalles actuales?', 
+                btnOkText: 'Sí',
+                btnCancelText: 'No',
+                btnOkOnPress: (){
+                  _clearDetails();
+                  _syncDetailsWithGrid(); 
+                },
+                btnCancelOnPress: (){
+                  _selectedSupplier = newValue;
+              }).show();
+            }
           }
         });
       },
@@ -1317,15 +1270,6 @@ class _TransaccionIngresoState extends State<TransaccionIngreso> {
                     type.name,
                     style: const TextStyle(fontWeight: FontWeight.w500),
                   ),
-/*                   Text(
-                    type.description,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ), */
                 ],
               ),
         );
@@ -1457,7 +1401,315 @@ class _TransaccionIngresoState extends State<TransaccionIngreso> {
     );
   }
 
-  // ==================== CAMPOS DEl GRID DE DETALLE ====================
+  // ==================== CAMPOS DEL MODAL ====================
+
+  // Dropdown de Producto para el modal
+  Widget _buildSupplyDropdownModal(IncomingDetailForm detail, StateSetter setModalState) {
+    if (_supplies.isEmpty) {
+      return DropdownButtonFormField<MasterSupply>(
+        value: null,
+        decoration: const InputDecoration(
+          labelText: 'Producto *',
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.all(Radius.circular(10.0)),
+          ),
+          hintText: 'No hay productos disponibles',
+        ),
+        items: const [],
+        onChanged: null,
+      );
+    }
+
+    MasterSupply? selectedSupply;
+    try {
+      if (detail.supplyId > 0) {
+        selectedSupply = _supplies.firstWhere(
+          (supply) => supply.supplyId == detail.supplyId,
+        );
+      }
+    } catch (e) {
+      selectedSupply = null;
+    }
+
+    return DropdownButtonFormField<MasterSupply>(
+      value: selectedSupply,
+      decoration: const InputDecoration(
+        labelText: 'Producto *',
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(10.0)),
+        ),
+      ),
+      items: _supplies.map((supply) {
+        return DropdownMenuItem<MasterSupply>(
+          value: supply,
+          child: Text('${supply.name} (${supply.code})'),
+        );
+      }).toList(),
+      onChanged: (MasterSupply? newValue) {
+        if (newValue != null) {
+          setModalState(() {
+            detail.supplyId = newValue.supplyId ?? 0;
+            detail.unitCost = newValue.unitCost;
+            detail.unitCostController.text = detail.unitCost.toStringAsFixed(2);
+            detail.calculateSubtotal();
+          });
+        }
+      },
+    );
+  }
+
+  // Campo de Cantidad para el modal
+  Widget _buildQuantityFieldModal(IncomingDetailForm detail, StateSetter setModalState) {
+    return TextFormField(
+      controller: detail.quantityController,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      decoration: const InputDecoration(
+        labelText: 'Cantidad *',
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(10.0)),
+        ),
+      ),
+      validator: (value) {
+        if (value == null || value.trim().isEmpty) {
+          return 'Ingrese la cantidad';
+        }
+        if (double.tryParse(value) == null) {
+          return 'Ingrese un número válido';
+        }
+        final quantity = double.tryParse(value) ?? 0;
+        if (quantity <= 0) {
+          return 'La cantidad debe ser mayor a 0';
+        }
+        return null;
+      },
+      onChanged: (value) {
+        setModalState(() {
+          detail.calculateSubtotal();
+        });
+      },
+    );
+  }
+
+  // Campo de Costo Unitario para el modal
+  Widget _buildUnitCostFieldModal(IncomingDetailForm detail, StateSetter setModalState) {
+    return TextFormField(
+      controller: detail.unitCostController,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      decoration: const InputDecoration(
+        labelText: 'Costo Unitario *',
+        prefixText: '\$ ',
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(10.0)),
+        ),
+      ),
+      validator: (value) {
+        if (value == null || value.trim().isEmpty) {
+          return 'Ingrese el costo';
+        }
+        if (double.tryParse(value) == null) {
+          return 'Ingrese un número válido';
+        }
+        final cost = double.tryParse(value) ?? 0;
+        if (cost < 0) {
+          return 'El costo no puede ser negativo';
+        }
+        return null;
+      },
+      onChanged: (value) {
+        setModalState(() {
+          detail.calculateSubtotal();
+        });
+      },
+    );
+  }
+
+  // Campo de Subtotal para el modal (solo lectura)
+  Widget _buildSubtotalFieldModal(IncomingDetailForm detail) {
+    return TextFormField(
+      controller: detail.subtotalController,
+      readOnly: true,
+      decoration: InputDecoration(
+        labelText: 'Subtotal',
+        prefixText: '\$ ',
+        border: const OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(10.0)),
+        ),
+        filled: true,
+        fillColor: Colors.grey.shade200,
+      ),
+    );
+  }
+
+  // Campo de Número de Lote para el modal
+  Widget _buildBatchNumberFieldModal(IncomingDetailForm detail) {
+    return TextFormField(
+      controller: detail.batchNumberController,
+      maxLength: 50,
+      textCapitalization: TextCapitalization.sentences,
+      inputFormatters: [UpperCaseTextFormatter()],
+      keyboardType: TextInputType.text,
+      style: const TextStyle(fontSize: 10, color: Colors.black, fontWeight: FontWeight.w500),
+      decoration: const InputDecoration(
+        labelText: 'Número de Lote',
+        counterText: "",
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(10.0)),
+        ),
+      ),
+    );
+  }
+
+  // Campo de Fecha de Vencimiento para el modal
+  Widget _buildExpirationDateFieldModal(IncomingDetailForm detail) {
+    return TextFormField(
+      controller: detail.expirationDateController,
+      readOnly: true,
+      decoration: const InputDecoration(
+        labelText: 'Fecha de Vencimiento',
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(10.0)),
+        ),
+        hintText: 'DD-MM-YYYY',
+      ),
+      onTap: () async {
+        DateTime? pickedDate =
+            await showDatePicker(
+                context: context,
+                initialDate: DateTime.now(),
+                firstDate: DateTime(2024),
+                lastDate: DateTime( 2050));
+                                              
+        if (pickedDate != null) {
+          String formattedDate = DateFormat('dd-MM-yyyy').format(pickedDate);
+          setState(() {
+            detail.expirationDateController.text = formattedDate;
+          });
+        } else {
+          detail.expirationDateController.clear();
+        }
+      },
+    );
+  }
+
+  // Campo de Ubicación para el modal
+  Widget _buildWarehouseLocationFieldModal(IncomingDetailForm detail) {
+    return TextFormField(
+      controller: detail.warehouseLocationController,
+      maxLength: 100,
+      textCapitalization: TextCapitalization.sentences,
+      inputFormatters: [UpperCaseTextFormatter()],
+      keyboardType: TextInputType.text,
+      style: const TextStyle(fontSize: 10, color: Colors.black, fontWeight: FontWeight.w500),
+      decoration: const InputDecoration(
+        labelText: 'Ubicación en Almacén',
+        counterText: "",
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(10.0)),
+        ),
+      ),
+    );
+  }
+
+  // Campo de Notas para el modal
+  Widget _buildNotesFieldModal(IncomingDetailForm detail) {
+    return TextFormField(
+      controller: detail.notesController,
+      maxLines: 2,
+      maxLength: 400,
+      textCapitalization: TextCapitalization.sentences,
+      inputFormatters: [UpperCaseTextFormatter()],
+      keyboardType: TextInputType.text,
+      style: const TextStyle(fontSize: 10, color: Colors.black, fontWeight: FontWeight.w500),
+      decoration: const InputDecoration(
+        labelText: 'Notas',
+        counterText: "",
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(10.0)),
+        ),
+      ),
+    );
+  }
+
+  // Método para mostrar confirmación de eliminación
+  void _showDeleteConfirmation(int index) {
+    AwesomeDialog(
+      context: context,
+      animType: AnimType.bottomSlide,
+      dialogType: DialogType.question,
+      title: 'Confirmar Eliminación',
+      desc: '¿Está seguro que desea eliminar este detalle?',
+      btnCancelText: 'Cancelar',
+      btnOkText: 'Eliminar',
+      btnCancelOnPress: () {},
+      btnOkOnPress: () {
+        _removeDetail(index);
+      },
+    ).show();
+  }
+
+  // Método para guardar detalle desde el modal
+  void _saveDetailFromModal(IncomingDetailForm detail, int? editIndex, BuildContext context) {
+    // Validar campos requeridos
+    if (detail.supplyId == 0) {
+      AwesomeDialog(
+        context: context,
+        animType: AnimType.bottomSlide,
+        dialogType: DialogType.warning,
+        title: 'Producto Requerido',
+        desc: 'Por favor seleccione un producto',
+        btnOkText: 'Entendido',
+        btnOkOnPress: () {},
+      ).show();
+      return;
+    }
+
+    if (detail.quantityController.text.trim().isEmpty) {
+      AwesomeDialog(
+        context: context,
+        animType: AnimType.bottomSlide,
+        dialogType: DialogType.warning,
+        title: 'Cantidad Requerida',
+        desc: 'Por favor ingrese la cantidad',
+        btnOkText: 'Entendido',
+        btnOkOnPress: () {},
+      ).show();
+      return;
+    }
+
+    if (detail.unitCostController.text.trim().isEmpty) {
+      AwesomeDialog(
+        context: context,
+        animType: AnimType.bottomSlide,
+        dialogType: DialogType.warning,
+        title: 'Costo Requerido',
+        desc: 'Por favor ingrese el costo unitario',
+        btnOkText: 'Entendido',
+        btnOkOnPress: () {},
+      ).show();
+      return;
+    }
+
+    // Calcular subtotal final
+    detail.calculateSubtotal();
+
+    if (editIndex != null) {
+      // Actualizar detalle existente
+      setState(() {
+        _details[editIndex] = detail;
+      });
+    } else {
+      // Agregar nuevo detalle
+      setState(() {
+        _details.add(detail);
+      });
+    }
+
+    // Cerrar modal y actualizar
+    Navigator.pop(context);
+    _calculateTotals();
+  }
+
+  // ==================== CAMPOS DEL GRID DE DETALLE ====================
 
   List<PlutoRow> rowsLista(List info) {
     List<PlutoRow> retorno = [];
@@ -1678,6 +1930,10 @@ class _TransaccionIngresoState extends State<TransaccionIngreso> {
               child: IconButton(
                 icon: const Image(image: AssetImage('assets/images/iconsEdit24.png'),),
                 onPressed: () {
+                  final rowIndex = rendererContext.rowIdx;
+                  if (rowIndex < _details.length) {
+                    _showDetailModal(rowIndex);
+                  }
                 },
                 iconSize: 15,
                 padding: const EdgeInsets.all(0),
@@ -1707,6 +1963,28 @@ class _TransaccionIngresoState extends State<TransaccionIngreso> {
             child: IconButton(
               icon: const Image(image: AssetImage('assets/images/eliminar_32x32.png'),),
               onPressed: () {
+                final rowIndex = rendererContext.rowIdx;
+                if (rowIndex < _details.length) {
+                  final detailData = _lisDocumentDetails[rowIndex];
+                  final detailId = detailData['detail_id'];
+                  
+                  // NO permitir eliminar si ya está grabado en BD
+                  if (detailId > 0) {
+                    AwesomeDialog(
+                      context: context,
+                      animType: AnimType.bottomSlide,
+                      dialogType: DialogType.warning,
+                      title: 'Detalle No Eliminable',
+                      desc: 'Este detalle ya está guardado en la base de datos y no puede ser eliminado.',
+                      btnOkText: 'Entendido',
+                      btnOkOnPress: () {},
+                    ).show();
+                    return;
+                  }
+                  
+                  // Solo eliminar si es un detalle nuevo (detail_id = 0)
+                  _showDeleteConfirmation(rowIndex);
+                }
               },
               iconSize: 15,
               padding: const EdgeInsets.all(0),
@@ -1720,7 +1998,7 @@ class _TransaccionIngresoState extends State<TransaccionIngreso> {
 
 // ==================== CAMPOS DE DETALLE ====================
 
-  DropdownButtonFormField<MasterSupply> _buildSupplyDropdown(IncomingDetailForm detail) {
+/*   DropdownButtonFormField<MasterSupply> _buildSupplyDropdown(IncomingDetailForm detail) {
     // Verificar que hay suministros disponibles
     if (_supplies.isEmpty) {
       return DropdownButtonFormField<MasterSupply>(
@@ -1931,27 +2209,195 @@ class _TransaccionIngresoState extends State<TransaccionIngreso> {
       ),
     );
   }
-
+ */
   // ==================== MÉTODOS DE GESTIÓN ====================
 
+  // Mostrar modal para agregar/editar detalle
+  void _showDetailModal([int? editIndex]) {
+    showModalBottomSheet(
+      context: context,
+      isDismissible: false,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return _buildDetailFormModal(editIndex);
+      },
+    );
+  }
+
+  // Construir el modal del formulario de detalle
+  Widget _buildDetailFormModal([int? editIndex]) {
+    final isEditing = editIndex != null;
+    final detail = isEditing ? _details[editIndex] : IncomingDetailForm.newDetail();
+    
+    return StatefulBuilder(
+      builder: (context, setModalState) {
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.8,
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header del modal
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    isEditing ? 'Editar Detalle' : 'Agregar Detalle',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+              const Divider(),
+              const SizedBox(height: 20),
+              
+              // Formulario del detalle
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      // Dropdown de Producto
+                      _buildSupplyDropdownModal(detail, setModalState),
+                      const SizedBox(height: 20),
+                      
+                      // Cantidad y Costo Unitario
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildQuantityFieldModal(detail, setModalState),
+                          ),
+                          const SizedBox(width: 20),
+                          Expanded(
+                            child: _buildUnitCostFieldModal(detail, setModalState),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      
+                      // Subtotal (solo lectura) y Número de Lote
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildSubtotalFieldModal(detail),
+                          ),
+                          const SizedBox(width: 20),
+                          Expanded(
+                            child: _buildBatchNumberFieldModal(detail),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      
+                      // Fecha de Vencimiento y Ubicación
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildExpirationDateFieldModal(detail),
+                          ),
+                          const SizedBox(width: 20),
+                          Expanded(
+                            child: _buildWarehouseLocationFieldModal(detail),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                     
+                      // Notas
+                      _buildNotesFieldModal(detail),
+                    ],
+                  ),
+                ),
+              ),
+              
+              // Botones de acción
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey,
+                        padding: const EdgeInsets.symmetric(vertical: 15),
+                      ),
+                      child: const Text('Cancelar'),
+                    ),
+                  ),
+                  const SizedBox(width: 20),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => _saveDetailFromModal(detail, editIndex, context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        padding: const EdgeInsets.symmetric(vertical: 15),
+                      ),
+                      child: Text(isEditing ? 'Actualizar' : 'Guardar'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   void _addDetail() {
-    setState(() {
-      _details.add(IncomingDetailForm());
-    });
+    // Mostrar modal para agregar detalle
+    _showDetailModal();
+    // Sincronizar con grid después de limpiar
+    _syncDetailsWithGrid();
+    // Agregar un detalle por defecto
+    rowsLista(_lisDocumentDetails);
   }
 
   void _removeDetail(int index) {
-    setState(() {
-      _details.removeAt(index);
-    });
-    _calculateTotals();
+    // Verificar que el detalle no esté ya guardado
+    if (index < _details.length) {
+      final detail = _details[index];
+      
+      // Si el detalle ya tiene ID en BD, no permitir eliminar
+      if (detail.detailId > 0) {
+        AwesomeDialog(
+          context: context,
+          animType: AnimType.bottomSlide,
+          dialogType: DialogType.warning,
+          title: 'Detalle No Eliminable',
+          desc: 'Este detalle ya está guardado en la base de datos y no puede ser eliminado.',
+          btnOkText: 'Entendido',
+          btnOkOnPress: () {},
+        ).show();
+        return;
+      }
+      
+      // Solo eliminar si es un detalle nuevo
+      setState(() {
+        _details.removeAt(index);
+      });
+      
+      // Recalcular totales y sincronizar grid
+      _calculateTotals();
+    }
   }
 
   void _clearDetails() {
     setState(() {
       _details.clear();
-      _addDetail(); // Add one detail to ensure there's at least one
     });
+    // Sincronizar con grid después de limpiar
+    _syncDetailsWithGrid();
+    // Agregar un detalle por defecto
+    //_addDetail();
   }
 
   void _validateDropdownData() {
@@ -1978,6 +2424,40 @@ class _TransaccionIngresoState extends State<TransaccionIngreso> {
     
     _subtotalController.text = subtotal.toStringAsFixed(2);
     _calculateTotal();
+    
+    // Sincronizar con grid después de calcular totales
+    _syncDetailsWithGrid();
+  }
+
+  // Método para sincronizar detalles con el grid
+  void _syncDetailsWithGrid() {
+    setState(() {
+      _lisDocumentDetails.clear();
+      
+      for (int i = 0; i < _details.length; i++) {
+        final detail = _details[i];
+        _lisDocumentDetails.add({
+          'detail_id': detail.detailId, // Usar detailId real
+          'incoming_id': _transactionId ?? 0,
+          'supply_id': detail.supplyId,
+          'quantity': detail.quantity,
+          'unit_cost': detail.unitCost,
+          'subtotal': detail.subtotal,
+          'batch_number': detail.batchNumber,
+          'expiration_date': detail.expirationDate,
+          'warehouse_location': detail.warehouseLocation,
+          'notes': detail.notes,
+        });
+      }
+      //print('📚 _details: $_details');
+      //print('📚 _lisDocumentDetails: $_lisDocumentDetails');
+      // Actualizar grid si está cargado
+      if (stateManager != null) {
+        stateManager!.notifyListeners();
+        stateManager!.removeRows(stateManager!.rows);
+        stateManager!.appendRows(rowsLista(_lisDocumentDetails));
+      }
+    });
   }
 
   void _calculateTotal() {
@@ -2007,7 +2487,11 @@ class _TransaccionIngresoState extends State<TransaccionIngreso> {
     // Regenerar número de transacción y fecha
     _transactionNumberController.text = IncomingTransactionService.generateTransactionNumber();
     _transactionDateController.text = DateFormat('dd-MM-yyyy').format(DateTime.now().toLocal());
-    _addDetail();
+    
+    // Sincronizar grid
+    _syncDetailsWithGrid();
+    // Agregar detalle por defecto
+    //_addDetail();
   }
 
   Future<void> _guardarTransaccion() async {
@@ -2049,8 +2533,8 @@ class _TransaccionIngresoState extends State<TransaccionIngreso> {
           context: context,
           animType: AnimType.bottomSlide,
           dialogType: DialogType.warning,
-          title: 'Suministro Requerido',
-          desc: 'Por favor seleccione un suministro en el detalle ${i + 1}',
+          title: 'Proveedor Requerido',
+          desc: 'Por favor seleccione un Proveedor en el detalle ${i + 1}',
           btnOkText: 'Entendido',
           btnOkOnPress: () {},
         ).show();
@@ -2069,7 +2553,7 @@ class _TransaccionIngresoState extends State<TransaccionIngreso> {
         unitCost: detail.unitCost,
         subtotal: detail.subtotal,
         batchNumber: detail.batchNumber,
-        expirationDate: detail.expirationDate,
+        expirationDate: DateFormat('yyyy-MM-dd').format(DateFormat('dd-MM-yyyy').parse(detail.expirationDate)),
         warehouseLocation: detail.warehouseLocation,
         notes: detail.notes,
       )).toList();
@@ -2079,7 +2563,7 @@ class _TransaccionIngresoState extends State<TransaccionIngreso> {
         final transaction = IncomingTransaction(
           incomingId: _transactionId!,
           transactionNumber: _transactionNumberController.text.trim(),
-          transactionDate: _transactionDateController.text.trim(),
+          transactionDate: DateFormat('yyyy-MM-dd').format(DateFormat('dd-MM-yyyy').parse(_transactionDateController.text.trim())),
           supplierId: _selectedSupplier!.supplierId!,
           invoiceNumber: _invoiceNumberController.text.trim(),
           transactionType: _selectedTransactionType,
@@ -2107,7 +2591,7 @@ class _TransaccionIngresoState extends State<TransaccionIngreso> {
         // Crear nueva transacción
         final transaction = CreateIncomingTransaction(
           transactionNumber: _transactionNumberController.text.trim(),
-          transactionDate: _transactionDateController.text.trim(),
+          transactionDate: DateFormat('yyyy-MM-dd').format(DateFormat('dd-MM-yyyy').parse(_transactionDateController.text.trim())),
           supplierId: _selectedSupplier!.supplierId!,
           invoiceNumber: _invoiceNumberController.text.trim(),
           transactionType: _selectedTransactionType,
@@ -2208,6 +2692,7 @@ class _TransaccionIngresoState extends State<TransaccionIngreso> {
 
 // Clase auxiliar para manejar los formularios de detalles
 class IncomingDetailForm {
+  int detailId = 0; // ID del detalle en BD (0 = nuevo, >0 = existente)
   int supplyId = 0;
   double quantity = 0;
   double unitCost = 0;
@@ -2221,6 +2706,36 @@ class IncomingDetailForm {
   final TextEditingController warehouseLocationController = TextEditingController();
   final TextEditingController notesController = TextEditingController();
 
+  // Constructor para nuevos detalles
+  IncomingDetailForm.newDetail() {
+    detailId = 0;
+    supplyId = 0;
+    quantity = 0;
+    unitCost = 0;
+    subtotal = 0;
+  }
+
+  // Constructor para detalles existentes
+  IncomingDetailForm.fromExisting({
+    required this.detailId,
+    required this.supplyId,
+    required this.quantity,
+    required this.unitCost,
+    required this.subtotal,
+    String? batchNumber,
+    String? expirationDate,
+    String? warehouseLocation,
+    String? notes,
+  }) {
+    quantityController.text = quantity.toString();
+    unitCostController.text = unitCost.toStringAsFixed(2);
+    subtotalController.text = subtotal.toStringAsFixed(2);
+    batchNumberController.text = batchNumber ?? '';
+    expirationDateController.text = expirationDate ?? '';
+    warehouseLocationController.text = warehouseLocation ?? '';
+    notesController.text = notes ?? '';
+  }
+
   void calculateSubtotal() {
     quantity = double.tryParse(quantityController.text) ?? 0;
     unitCost = double.tryParse(unitCostController.text) ?? 0;
@@ -2232,4 +2747,15 @@ class IncomingDetailForm {
   String get expirationDate => expirationDateController.text.trim();
   String get warehouseLocation => warehouseLocationController.text.trim();
   String get notes => notesController.text.trim();
+
+  // Método para limpiar controladores
+  void dispose() {
+    quantityController.dispose();
+    unitCostController.dispose();
+    subtotalController.dispose();
+    batchNumberController.dispose();
+    expirationDateController.dispose();
+    warehouseLocationController.dispose();
+    notesController.dispose();
+  }
 } 

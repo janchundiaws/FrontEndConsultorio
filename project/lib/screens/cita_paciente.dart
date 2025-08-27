@@ -908,7 +908,7 @@ Widget dropdowndentistsField({required BuildContext context, required String? va
       },
       validator: (value) {
         if (value == null || value.isEmpty) {
-          return 'Seleccione un Estado Civil';
+          return 'Seleccione un Doctor(a)';
         }
         return null;
       },

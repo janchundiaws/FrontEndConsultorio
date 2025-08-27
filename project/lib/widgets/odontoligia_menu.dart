@@ -41,6 +41,7 @@ class OdontologiaMenu extends StatelessWidget {
         {'icon': Icons.inventory_2, 'title': 'Suministros', 'subtitle': 'Maestro de suministros'},
         {'icon': Icons.input, 'title': 'Transacciones Ingreso', 'subtitle': 'Entrada de productos'},
         {'icon': Icons.output, 'title': 'Transacciones Egreso', 'subtitle': 'Salida de productos'},
+        {'icon': Icons.assessment, 'title': 'Reporte Stock Suministros', 'subtitle': 'Reporte de inventario'},
       ]
     },
     {
